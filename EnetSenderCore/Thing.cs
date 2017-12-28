@@ -2,9 +2,11 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace EnetSenderCore
 {
+
     public abstract class Thing
     {
         private Socket _sender;
@@ -21,12 +23,7 @@ namespace EnetSenderCore
         }
 
 
-        public void SendChannelMessage(string message)
-        {
-            message = message.Replace("{channel}", Channel.ToString());
-            SendMessage(message);
-        }
-
+       
         public void SendMessage(string message)
         {
 
@@ -47,9 +44,16 @@ namespace EnetSenderCore
             Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(_bytes, 0, bytesRec));
         }
 
+        public void SendChannelMessage(string message)
+        {
+            message = message.Replace("{channel}", Channel.ToString());
+            SendMessage(message);
+        }
+
         public void ConnectAndSendMessage(Action action)
         {
-            IPHostEntry ipHostInfo = Dns.Resolve("192.168.178.34");
+            IPHostEntry ipHostInfo = //Dns.Resolve("192.168.178.34");
+            Dns.GetHostEntry("192.168.178.34");
             IPAddress ipAddress = ipHostInfo.AddressList[0];
             IPEndPoint remoteEP = new IPEndPoint(ipAddress, 9050);
 
@@ -63,18 +67,35 @@ namespace EnetSenderCore
                 _sender.Connect(remoteEP);
 
                 Console.WriteLine("Socket connected to {0}", _sender.RemoteEndPoint.ToString());
-               
+
                 // Encode the data string into a byte array.
-                SendChannelMessage(Resource1.SignIn);
+                var signInMessage = new EnetCommandMessage()
+                {
+                    Channel = Channel,
+                    Command = "ITEM_VALUE_SIGN_IN_REQ"
+                };
+
+                string signInMessageString = signInMessage.GetMessageString();
+
+                SendMessage(signInMessageString);
                 ReceiveMessage();
-                SendChannelMessage(Resource1.SignIn);
+                SendMessage(signInMessageString);
                 //SendOnOffMessage(channel, false);
                 ReceiveMessage();
                 action();
                 //SendMessage(Resource1.GetProjectList);
                 //SendOnOffMessage(16, false);
                 ReceiveMessage();
-                SendChannelMessage(Resource1.SignOff);
+
+                var signOutMessage = new EnetCommandMessage()
+                {
+                    Channel = Channel,
+                    Command = "ITEM_VALUE_SIGN_OUT_REQ"
+                };
+
+                string signOutMessageString = signOutMessage.GetMessageString();
+
+                SendMessage(signOutMessageString);
                 ReceiveMessage();
 
 

@@ -1,11 +1,14 @@
-﻿using Chroniton;
-using Chroniton.Jobs;
-using Chroniton.Schedules;
+﻿using Quartz;
+using Quartz.Impl;
+using Quartz.Logging;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 namespace EnetSenderCore
 {
+
     class Program
     {
         private IDictionary<string, int> things = new Dictionary<string, int>()
@@ -23,73 +26,99 @@ namespace EnetSenderCore
             { "RolloDisneyZimmer",24},
             { "RolloLeeresZimmer",25},
 
-        }           ;
+        };
+        private static Switch _closetSwitch = new Switch("Schrank", 16);
+        private static Blind _blindOfficeStreet = new Blind("RolloArbeitszimmerStraße", 17);
+        private static Blind _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
 
+        public static JobBuilder ActionJob(Action action)
+        {
+            return JobBuilder
+                .Create<RunActionJob>()
+                .SetJobData(new JobDataMap{
+                    { "action", action}
+                });
+        }
 
         static void Main(string[] args)
         {
-            var schrankSwitch = new Switch("Schrank", 16);
-            Blind rolloArbeitszimmerStraße = new Blind("RolloArbeitszimmerStraße", 17);
             Blind RaffstoreEssen = new Blind("RaffstoreEssen", 19);
-            Blind RolloArbeitszimmerStraße = new Blind("RolloArbeitszimmerStraße", 17);
-            Blind RolloArbeitszimmerGarage = new Blind("RolloArbeitszimmerGarage", 18);
             Blind rolloEssen = new Blind("RolloEssen", 21);
 
-            var singularity = Singularity.Instance;
-            singularity.OnJobError += HandleJobError;
-            singularity.OnScheduled += HandleScheduled;
-            singularity.OnScheduleError += HandleScheduleError;
-            singularity.OnSuccess += HandleSuccess;
-            
-            ISchedule everyDaySchedule = new MySchedule(new TimeSpan(21,10,0));
-            
-          //  singularity.ScheduleJob(everyDaySchedule, new SimpleJob((x) => RolloArbeitszimmerGarage.MoveDown()), DateTime.Now.AddMinutes(2));
-            singularity.Start();
-            singularity.ScheduleJob(everyDaySchedule, new SimpleJob((x) => RolloArbeitszimmerGarage.MoveDown()), true);
+            _closetSwitch.TurnOn();
 
+            LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
+
+
+
+            //RunProgram().GetAwaiter().GetResult();
+
+            //StartSingularity(RolloArbeitszimmerGarage);
+
+            Console.WriteLine("Press any key to close the application");
             Console.ReadKey();
-            
+
         }
 
-        private static void HandleSuccess(ScheduledJobEventArgs job)
-        {
-            throw new NotImplementedException();
-        }
 
-        private static void HandleScheduleError(ScheduledJobEventArgs job, Exception e)
-        {
-            throw new NotImplementedException();
-        }
 
-        private static void HandleScheduled(ScheduledJobEventArgs job)
+        private static async Task RunProgram()
         {
-            Console.WriteLine("Scheduled at {0}", job.ScheduledTime);
-        }
-
-        private static void HandleJobError(ScheduledJobEventArgs job, Exception e)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class MySchedule : ISchedule
-    {
-        public MySchedule(TimeSpan timeToRun)
-        {
-            TimeToRun = timeToRun;
-        }
-
-        public string Name { get; set; }
-
-        public TimeSpan TimeToRun { get; set; }
-        public DateTime NextScheduledTime(IScheduledJob scheduledJob)
-        {
-            DateTime result = DateTime.Today + TimeToRun;
-            if (result < DateTime.Now)
+            try
             {
-                result = DateTime.Today.AddDays(1) + TimeToRun;
+                // Grab the Scheduler instance from the Factory
+                NameValueCollection props = new NameValueCollection
+                {
+                    { "quartz.serializer.type", "binary" }
+                };
+                StdSchedulerFactory factory = new StdSchedulerFactory(props);
+                IScheduler scheduler = await factory.GetScheduler();
+
+                var closeOfficeBlindsJob = ActionJob(() => {
+                    _blindOfficeGarage.MoveDown();
+                    _blindOfficeStreet.MoveDown();
+                }).Build();
+
+                var openOfficeBlindsJob = ActionJob(() => {
+                    _blindOfficeGarage.MoveUp();
+                    _blindOfficeStreet.MoveUp();
+                }).Build();
+
+
+
+                ITrigger openOfficeBlindsTrigger = TriggerBuilder.Create()
+                              .StartAt(DateTimeOffset.Now.AddSeconds(60))
+                              .WithSimpleSchedule(x => x.WithIntervalInMinutes(2)
+                                                        .WithRepeatCount(1))
+                              .Build();
+
+                ITrigger closeOfficeBlindsTrigger = TriggerBuilder.Create()
+                             .StartAt(DateTimeOffset.Now.AddSeconds(120))
+                             .WithSimpleSchedule(x => x.WithIntervalInMinutes(2)
+                                                        .WithRepeatCount(1))
+                             .Build();
+
+                await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
+                await scheduler.ScheduleJob(closeOfficeBlindsJob, closeOfficeBlindsTrigger);
+
+
+
+                // and start it off
+                await scheduler.Start();
+
+                //// some sleep to show what's happening
+                //await Task.Delay(TimeSpan.FromSeconds(60));
+
+                //// and last shut down the scheduler when you are ready to close your program
+                //await scheduler.Shutdown();
             }
-            return result;
+            catch (SchedulerException se)
+            {
+                await Console.Error.WriteLineAsync(se.ToString());
+            }
         }
+
+   
     }
+
 }

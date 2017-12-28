@@ -18,8 +18,13 @@
 
         public void SendOnOffMessage(bool state)
         {
-            string message = Resource1.ValueSetMessageTemplate.Replace("{state}", state ? "ON" : "OFF");
-            SendChannelMessage(message);
+            var message = new EnetOnOffMessage
+            {
+                Channel = Channel,
+                On = state
+            };
+          //  string message = Resource1.ValueSetMessageTemplate.Replace("{state}", state ? "ON" : "OFF");
+            SendChannelMessage(message.GetMessageString());
         }
 
     }
