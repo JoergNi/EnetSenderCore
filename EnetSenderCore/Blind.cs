@@ -23,7 +23,7 @@
                 Channel = Channel,
                 Value = value
             };
-            SendChannelMessage(message.GetMessageString());
+            SendMessage(message.GetMessageString());
         }
     }
 }

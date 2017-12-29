@@ -23,7 +23,7 @@
                 Channel = Channel,
                 On = state
             };
-            SendChannelMessage(message.GetMessageString());
+            SendMessage(message.GetMessageString());
         }
 
     }

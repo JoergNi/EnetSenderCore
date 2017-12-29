@@ -38,11 +38,6 @@ namespace EnetSenderCore
             Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(_bytes, 0, bytesRec).Trim());
         }
 
-        public void SendChannelMessage(string message)
-        {
-            message = message.Replace("{channel}", Channel.ToString());
-            SendMessage(message);
-        }
 
         public void ConnectAndSendMessage(Action action)
         {

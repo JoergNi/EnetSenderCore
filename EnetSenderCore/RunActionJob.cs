@@ -9,7 +9,7 @@ namespace EnetSenderCore
         public async Task Execute(IJobExecutionContext context)
         {
             var action = context.MergedJobDataMap["action"] as Action;
-            action();
+            await Task.Run(action);
         }
     }
 

@@ -38,15 +38,15 @@ namespace EnetSenderCore
     [DataContract]
     public class EnetOnOffMessage : EnetCommandMessage
     {
+        // {"NUMBER":{channel},"STATE":"{state}"}
+
         public EnetOnOffMessage()
         {
             Command = "ITEM_VALUE_SET";
         }
-        // [DataMember(Name = "ITEMS")]
         public override IList<int> Items { get { return null; } }
 
         public bool On { get; set; }
-        // {"NUMBER":{channel},"STATE":"{state}"}
 
         [DataMember(Name = "VALUES")]
         public IList<SwitchState> Values { get { return new List<SwitchState> { new SwitchState { Number = Channel, State = On ? "ON" : "OFF" } }; } }
@@ -62,11 +62,9 @@ namespace EnetSenderCore
         {
             Command = "ITEM_VALUE_SET";
         }
-        // [DataMember(Name = "ITEMS")]
         public override IList<int> Items { get { return null; } }
 
         public int Value { get; set; }
-        // {"NUMBER":{channel},"STATE":"{state}"}
 
         [DataMember(Name = "VALUES")]
         public IList<BlindState> Values { get { return new List<BlindState> { new BlindState { Number = Channel, Value = Value } }; } }
@@ -80,8 +78,7 @@ namespace EnetSenderCore
         public int Number { get; set; }
 
         [DataMember(Name = "STATE")]
-        public string State        {            get { return "VALUE_BLINDS"; }        }
-
+        public string State { get { return "VALUE_BLINDS"; } }
 
         [DataMember(Name = "VALUE")]
         public int Value { get; set; }

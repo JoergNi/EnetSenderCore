@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace EnetSenderCore
 {
+
     class Program
     {
         private IDictionary<string, int> things = new Dictionary<string, int>()
@@ -50,9 +51,11 @@ namespace EnetSenderCore
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
             RunProgram().GetAwaiter().GetResult();
 
-            Console.WriteLine("Press any key to close the application");
-            Console.ReadKey();
+            Console.WriteLine("Press x key to close the application");
+
+            while(Console.ReadKey().KeyChar!='x');
         }
+
 
 
         private static async Task RunProgram()
@@ -102,14 +105,26 @@ namespace EnetSenderCore
 
                 }).Build();
 
+
+                //TimeSpan now = DateTime.Now.TimeOfDay;
+
+                //ScheduleJob(scheduler, openSleepingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(20)));
+                //ScheduleJob(scheduler, openLivingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(40)));
+                //ScheduleJob(scheduler, openOfficeBlindsJob, now.Add(TimeSpan.FromSeconds(50)));
+
+
+                //ScheduleJob(scheduler, closeOfficeBlindsJob, now.Add(TimeSpan.FromSeconds(100)));
+                //ScheduleJob(scheduler, closeLivingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(110)));
+                //ScheduleJob(scheduler, closeSleepingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(120)));
+
                 ScheduleJob(scheduler, openSleepingRoomBlindsJob, new TimeSpan(7, 33, 0));
                 ScheduleJob(scheduler, openLivingRoomBlindsJob, new TimeSpan(7, 52, 0));
                 ScheduleJob(scheduler, openOfficeBlindsJob, new TimeSpan(8, 0, 11));
-                
+
                 ScheduleJob(scheduler, closeOfficeBlindsJob, new TimeSpan(16, 32, 0));
                 ScheduleJob(scheduler, closeLivingRoomBlindsJob, new TimeSpan(16, 44, 0));
                 ScheduleJob(scheduler, closeSleepingRoomBlindsJob, new TimeSpan(17, 1, 0));
-                
+
                 await scheduler.Start();
 
             }
@@ -122,6 +137,8 @@ namespace EnetSenderCore
         private static async void ScheduleJob(IScheduler scheduler, IJobDetail openOfficeBlindsJob, TimeSpan openOfficeBlindsTime)
         {
             ITrigger openOfficeBlindsTrigger = GetDailyTrigger(openOfficeBlindsTime);
+            Console.WriteLine("Scheduling job for "+openOfficeBlindsTime);
+
             await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
         }
 
@@ -133,5 +150,7 @@ namespace EnetSenderCore
                                                     .RepeatForever())
                           .Build();
         }
+
     }
+
 }
