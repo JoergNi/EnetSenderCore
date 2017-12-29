@@ -30,7 +30,7 @@ namespace EnetSenderCore
                             new JsonSerializerSettings
                             {
                                 NullValueHandling = NullValueHandling.Ignore
-                            }) 
+                            })
                             + "\r\n\r\n";
         }
     }
@@ -49,11 +49,47 @@ namespace EnetSenderCore
         // {"NUMBER":{channel},"STATE":"{state}"}
 
         [DataMember(Name = "VALUES")]
-        public IList<StateType> Values { get { return new List<StateType> { new StateType { Number = Channel, State = On ? "ON" : "OFF" } }; } }
+        public IList<SwitchState> Values { get { return new List<SwitchState> { new SwitchState { Number = Channel, State = On ? "ON" : "OFF" } }; } }
     }
 
     [DataContract]
-    public class StateType
+    public class EnetBlindsMessage : EnetCommandMessage
+    {
+
+        //"VALUES":[{"STATE":"VALUE_BLINDS","VALUE":{value},"NUMBER":{channel}}
+
+        public EnetBlindsMessage()
+        {
+            Command = "ITEM_VALUE_SET";
+        }
+        // [DataMember(Name = "ITEMS")]
+        public override IList<int> Items { get { return null; } }
+
+        public int Value { get; set; }
+        // {"NUMBER":{channel},"STATE":"{state}"}
+
+        [DataMember(Name = "VALUES")]
+        public IList<BlindState> Values { get { return new List<BlindState> { new BlindState { Number = Channel, Value = Value } }; } }
+    }
+
+
+    [DataContract]
+    public class BlindState
+    {
+        [DataMember(Name = "NUMBER")]
+        public int Number { get; set; }
+
+        [DataMember(Name = "STATE")]
+        public string State        {            get { return "VALUE_BLINDS"; }        }
+
+
+        [DataMember(Name = "VALUE")]
+        public int Value { get; set; }
+    }
+
+
+    [DataContract]
+    public class SwitchState
     {
         [DataMember(Name = "NUMBER")]
         public int Number { get; set; }

@@ -23,7 +23,6 @@
                 Channel = Channel,
                 On = state
             };
-          //  string message = Resource1.ValueSetMessageTemplate.Replace("{state}", state ? "ON" : "OFF");
             SendChannelMessage(message.GetMessageString());
         }
 

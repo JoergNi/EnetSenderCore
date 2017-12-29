@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 namespace EnetSenderCore
 {
-
     class Program
     {
         private IDictionary<string, int> things = new Dictionary<string, int>()
@@ -30,6 +29,10 @@ namespace EnetSenderCore
         private static Switch _closetSwitch = new Switch("Schrank", 16);
         private static Blind _blindOfficeStreet = new Blind("RolloArbeitszimmerStraße", 17);
         private static Blind _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
+        private static Blind _blindDiningroom = new Blind("RolloEssen", 21);
+        private static Blind _blindKitchen = new Blind("RolloKueche", 23);
+        private static Blind _blindSleepingRoom = new Blind("RolloSchlafzimmer", 22);
+
 
         public static JobBuilder ActionJob(Action action)
         {
@@ -43,23 +46,13 @@ namespace EnetSenderCore
         static void Main(string[] args)
         {
             Blind RaffstoreEssen = new Blind("RaffstoreEssen", 19);
-            Blind rolloEssen = new Blind("RolloEssen", 21);
-
-            _closetSwitch.TurnOn();
 
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
-
-
-
-            //RunProgram().GetAwaiter().GetResult();
-
-            //StartSingularity(RolloArbeitszimmerGarage);
+            RunProgram().GetAwaiter().GetResult();
 
             Console.WriteLine("Press any key to close the application");
             Console.ReadKey();
-
         }
-
 
 
         private static async Task RunProgram()
@@ -74,43 +67,51 @@ namespace EnetSenderCore
                 StdSchedulerFactory factory = new StdSchedulerFactory(props);
                 IScheduler scheduler = await factory.GetScheduler();
 
-                var closeOfficeBlindsJob = ActionJob(() => {
-                    _blindOfficeGarage.MoveDown();
+                var closeOfficeBlindsJob = ActionJob(() =>
+                {
+                    //_blindOfficeGarage.MoveDown();
                     _blindOfficeStreet.MoveDown();
                 }).Build();
 
-                var openOfficeBlindsJob = ActionJob(() => {
-                    _blindOfficeGarage.MoveUp();
+                var openOfficeBlindsJob = ActionJob(() =>
+                {
+                    //_blindOfficeGarage.MoveUp();
                     _blindOfficeStreet.MoveUp();
                 }).Build();
 
+                var closeLivingRoomBlindsJob = ActionJob(() =>
+                {
+                    _blindKitchen.MoveDown();
+                    _blindDiningroom.MoveDown();
+                }).Build();
 
+                var openLivingRoomBlindsJob = ActionJob(() =>
+                {
+                    _blindKitchen.MoveUp();
+                    _blindDiningroom.MoveUp();
+                }).Build();
 
-                ITrigger openOfficeBlindsTrigger = TriggerBuilder.Create()
-                              .StartAt(DateTimeOffset.Now.AddSeconds(60))
-                              .WithSimpleSchedule(x => x.WithIntervalInMinutes(2)
-                                                        .WithRepeatCount(1))
-                              .Build();
+                var closeSleepingRoomBlindsJob = ActionJob(() =>
+                {
+                    _blindSleepingRoom.MoveDown();
+                }).Build();
 
-                ITrigger closeOfficeBlindsTrigger = TriggerBuilder.Create()
-                             .StartAt(DateTimeOffset.Now.AddSeconds(120))
-                             .WithSimpleSchedule(x => x.WithIntervalInMinutes(2)
-                                                        .WithRepeatCount(1))
-                             .Build();
+                var openSleepingRoomBlindsJob = ActionJob(() =>
+                {
+                    _blindSleepingRoom.MoveUp();
 
-                await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
-                await scheduler.ScheduleJob(closeOfficeBlindsJob, closeOfficeBlindsTrigger);
+                }).Build();
 
-
-
-                // and start it off
+                ScheduleJob(scheduler, openSleepingRoomBlindsJob, new TimeSpan(7, 33, 0));
+                ScheduleJob(scheduler, openLivingRoomBlindsJob, new TimeSpan(7, 52, 0));
+                ScheduleJob(scheduler, openOfficeBlindsJob, new TimeSpan(8, 0, 11));
+                
+                ScheduleJob(scheduler, closeOfficeBlindsJob, new TimeSpan(16, 32, 0));
+                ScheduleJob(scheduler, closeLivingRoomBlindsJob, new TimeSpan(16, 44, 0));
+                ScheduleJob(scheduler, closeSleepingRoomBlindsJob, new TimeSpan(17, 1, 0));
+                
                 await scheduler.Start();
 
-                //// some sleep to show what's happening
-                //await Task.Delay(TimeSpan.FromSeconds(60));
-
-                //// and last shut down the scheduler when you are ready to close your program
-                //await scheduler.Shutdown();
             }
             catch (SchedulerException se)
             {
@@ -118,7 +119,19 @@ namespace EnetSenderCore
             }
         }
 
-   
-    }
+        private static async void ScheduleJob(IScheduler scheduler, IJobDetail openOfficeBlindsJob, TimeSpan openOfficeBlindsTime)
+        {
+            ITrigger openOfficeBlindsTrigger = GetDailyTrigger(openOfficeBlindsTime);
+            await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
+        }
 
+        private static ITrigger GetDailyTrigger(TimeSpan openOfficeBlindsTime)
+        {
+            return TriggerBuilder.Create()
+                          .StartAt(DateTimeOffset.Now.Date.Add(openOfficeBlindsTime))
+                          .WithSimpleSchedule(x => x.WithIntervalInHours(24)
+                                                    .RepeatForever())
+                          .Build();
+        }
+    }
 }

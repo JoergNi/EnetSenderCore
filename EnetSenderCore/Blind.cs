@@ -16,11 +16,14 @@
             ConnectAndSendMessage(() => SendBlindsMessage(0));
         }
 
-
         public void SendBlindsMessage(int value)
         {
-            string message = Resource1.BlindsValueSetMessage.Replace("{value}", value.ToString());
-            SendChannelMessage(message);
+            var message = new EnetBlindsMessage
+            {
+                Channel = Channel,
+                Value = value
+            };
+            SendChannelMessage(message.GetMessageString());
         }
     }
 }
