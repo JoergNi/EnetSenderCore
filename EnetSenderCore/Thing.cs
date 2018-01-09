@@ -41,8 +41,7 @@ namespace EnetSenderCore
 
         public void ConnectAndSendMessage(Action action)
         {
-            IPHostEntry ipHostInfo = Dns.GetHostEntry("192.168.178.34");
-            IPAddress ipAddress = ipHostInfo.AddressList[0];
+            IPAddress ipAddress = IPAddress.Parse("192.168.178.34");
             IPEndPoint remoteEP = new IPEndPoint(ipAddress, 9050);
 
             // Create a TCP/IP  socket.

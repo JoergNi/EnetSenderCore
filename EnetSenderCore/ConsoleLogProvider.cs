@@ -11,7 +11,7 @@ namespace EnetSenderCore
             {
                 if (level >= LogLevel.Info && func != null)
                 {
-                    Console.WriteLine("[" + DateTime.Now.ToLongTimeString() + "] [" + level + "] " + func(), parameters);
+                    Console.WriteLine("[" + DateTime.Now.ToString() + "] [" + level + "] " + func()+" "+ exception, parameters);
                 }
                 return true;
             };

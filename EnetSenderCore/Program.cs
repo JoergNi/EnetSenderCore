@@ -54,6 +54,9 @@ namespace EnetSenderCore
             Console.WriteLine("Press x key to close the application");
 
             while(Console.ReadKey().KeyChar!='x');
+
+            //TODO Logger mit datum
+            //TODO Exception loggen
         }
 
 
