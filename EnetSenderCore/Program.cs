@@ -30,10 +30,12 @@ namespace EnetSenderCore
         private static Switch _closetSwitch = new Switch("Schrank", 16);
         private static Blind _blindOfficeStreet = new Blind("RolloArbeitszimmerStraße", 17);
         private static Blind _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
-        private static Blind _blindDiningroom = new Blind("RolloEssen", 21);
+        private static Blind _blindDiningRoom = new Blind("RolloEssen", 21);
         private static Blind _blindKitchen = new Blind("RolloKueche", 23);
         private static Blind _blindSleepingRoom = new Blind("RolloSchlafzimmer", 22);
 
+        private static Blind _raffstoreDiningRoom = new Blind("RaffstoreEssen", 19);
+        private static Blind _raffstoreLivingRoom = new Blind("RaffstoreTerassenTür", 20);
 
         public static JobBuilder ActionJob(Action action)
         {
@@ -46,17 +48,15 @@ namespace EnetSenderCore
 
         static void Main(string[] args)
         {
-            Blind RaffstoreEssen = new Blind("RaffstoreEssen", 19);
 
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
             RunProgram().GetAwaiter().GetResult();
 
             Console.WriteLine("Press x key to close the application");
 
-            while(Console.ReadKey().KeyChar!='x');
+            while (Console.ReadKey().KeyChar != 'x') ;
 
-            //TODO Logger mit datum
-            //TODO Exception loggen
+
         }
 
 
@@ -75,26 +75,26 @@ namespace EnetSenderCore
 
                 var closeOfficeBlindsJob = ActionJob(() =>
                 {
-                    //_blindOfficeGarage.MoveDown();
+                    _blindOfficeGarage.MoveDown();
                     _blindOfficeStreet.MoveDown();
                 }).Build();
 
                 var openOfficeBlindsJob = ActionJob(() =>
                 {
-                    //_blindOfficeGarage.MoveUp();
+                    _blindOfficeGarage.MoveUp();
                     _blindOfficeStreet.MoveUp();
                 }).Build();
 
                 var closeLivingRoomBlindsJob = ActionJob(() =>
                 {
                     _blindKitchen.MoveDown();
-                    _blindDiningroom.MoveDown();
+                    _blindDiningRoom.MoveDown();
                 }).Build();
 
                 var openLivingRoomBlindsJob = ActionJob(() =>
                 {
                     _blindKitchen.MoveUp();
-                    _blindDiningroom.MoveUp();
+                    _blindDiningRoom.MoveUp();
                 }).Build();
 
                 var closeSleepingRoomBlindsJob = ActionJob(() =>
@@ -108,14 +108,28 @@ namespace EnetSenderCore
 
                 }).Build();
 
+                var closeRaffstoresJob = ActionJob(() =>
+                {
+                    _raffstoreDiningRoom.MoveDown();
+                    _raffstoreLivingRoom.MoveDown();
+                }).Build();
+
+                var openRaffstoresJob = ActionJob(() =>
+                {
+                    _raffstoreDiningRoom.MoveUp();
+                    _raffstoreLivingRoom.MoveUp();
+
+                }).Build();
+
 
                 //TimeSpan now = DateTime.Now.TimeOfDay;
 
                 //ScheduleJob(scheduler, openSleepingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(20)));
                 //ScheduleJob(scheduler, openLivingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(40)));
                 //ScheduleJob(scheduler, openOfficeBlindsJob, now.Add(TimeSpan.FromSeconds(50)));
+                //ScheduleJob(scheduler, openRaffstoresJob, now.Add(TimeSpan.FromSeconds(60)));
 
-
+                //ScheduleJob(scheduler, closeRaffstoresJob, now.Add(TimeSpan.FromSeconds(90)));
                 //ScheduleJob(scheduler, closeOfficeBlindsJob, now.Add(TimeSpan.FromSeconds(100)));
                 //ScheduleJob(scheduler, closeLivingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(110)));
                 //ScheduleJob(scheduler, closeSleepingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(120)));
@@ -123,10 +137,12 @@ namespace EnetSenderCore
                 ScheduleJob(scheduler, openSleepingRoomBlindsJob, new TimeSpan(7, 33, 0));
                 ScheduleJob(scheduler, openLivingRoomBlindsJob, new TimeSpan(7, 52, 0));
                 ScheduleJob(scheduler, openOfficeBlindsJob, new TimeSpan(8, 0, 11));
+                ScheduleJob(scheduler, openRaffstoresJob, new TimeSpan(8, 3, 11));
 
-                ScheduleJob(scheduler, closeOfficeBlindsJob, new TimeSpan(16, 32, 0));
-                ScheduleJob(scheduler, closeLivingRoomBlindsJob, new TimeSpan(16, 44, 0));
-                ScheduleJob(scheduler, closeSleepingRoomBlindsJob, new TimeSpan(17, 1, 0));
+                ScheduleJob(scheduler, closeRaffstoresJob, new TimeSpan(16, 50, 0));
+                ScheduleJob(scheduler, closeOfficeBlindsJob, new TimeSpan(16, 52, 0));
+                ScheduleJob(scheduler, closeLivingRoomBlindsJob, new TimeSpan(16, 59, 0));
+                ScheduleJob(scheduler, closeSleepingRoomBlindsJob, new TimeSpan(17, 11, 0));
 
                 await scheduler.Start();
 
@@ -140,19 +156,25 @@ namespace EnetSenderCore
         private static async void ScheduleJob(IScheduler scheduler, IJobDetail openOfficeBlindsJob, TimeSpan openOfficeBlindsTime)
         {
             ITrigger openOfficeBlindsTrigger = GetDailyTrigger(openOfficeBlindsTime);
-            Console.WriteLine("Scheduling job for "+openOfficeBlindsTime);
+            Console.WriteLine("Scheduling job for " + openOfficeBlindsTime);
 
             await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
         }
 
         private static ITrigger GetDailyTrigger(TimeSpan openOfficeBlindsTime)
         {
-            return TriggerBuilder.Create()
-                          .StartAt(DateTimeOffset.Now.Date.Add(openOfficeBlindsTime))
-                          .WithSimpleSchedule(x => x.WithIntervalInHours(24)
-                                                    .RepeatForever())
+            return TriggerBuilder.Create()                         
+                          .WithDailyTimeIntervalSchedule  (s =>  s.WithIntervalInHours(24)
+                                .OnMondayThroughFriday()
+                                .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(openOfficeBlindsTime.Hours, openOfficeBlindsTime.Minutes, openOfficeBlindsTime.Seconds))
+                            )
                           .Build();
         }
+
+
+
+
+
 
     }
 
