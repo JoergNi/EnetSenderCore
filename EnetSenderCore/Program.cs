@@ -134,15 +134,18 @@ namespace EnetSenderCore
                 //ScheduleJob(scheduler, closeLivingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(110)));
                 //ScheduleJob(scheduler, closeSleepingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(120)));
 
-                ScheduleJob(scheduler, openSleepingRoomBlindsJob, new TimeSpan(7, 33, 0));
-                ScheduleJob(scheduler, openLivingRoomBlindsJob, new TimeSpan(7, 52, 0));
-                ScheduleJob(scheduler, openOfficeBlindsJob, new TimeSpan(8, 0, 11));
-                ScheduleJob(scheduler, openRaffstoresJob, new TimeSpan(8, 3, 11));
 
-                ScheduleJob(scheduler, closeRaffstoresJob, new TimeSpan(16, 50, 0));
-                ScheduleJob(scheduler, closeOfficeBlindsJob, new TimeSpan(16, 52, 0));
-                ScheduleJob(scheduler, closeLivingRoomBlindsJob, new TimeSpan(16, 59, 0));
-                ScheduleJob(scheduler, closeSleepingRoomBlindsJob, new TimeSpan(17, 11, 0));
+                TimeSpan sunrise = new TimeSpan(8, 0, 0);
+                TimeSpan sundown = new TimeSpan(17, 25, 0);
+                ScheduleJob(scheduler, openSleepingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-30.8)));
+                ScheduleJob(scheduler, openLivingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-15.3)));
+                ScheduleJob(scheduler, openOfficeBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-3.1)));
+                ScheduleJob(scheduler, openRaffstoresJob, sunrise.Add(TimeSpan.FromMinutes(-0.7)));
+
+                ScheduleJob(scheduler, closeRaffstoresJob, sundown.Add(TimeSpan.FromMinutes(3.5)));
+                ScheduleJob(scheduler, closeOfficeBlindsJob, sundown.Add(TimeSpan.FromMinutes(5.9)), false);
+                ScheduleJob(scheduler, closeLivingRoomBlindsJob, sundown.Add(TimeSpan.FromMinutes(8.7)));
+                ScheduleJob(scheduler, closeSleepingRoomBlindsJob, sundown.Add(TimeSpan.FromMinutes(12.2)), false);
 
                 await scheduler.Start();
 
@@ -153,21 +156,32 @@ namespace EnetSenderCore
             }
         }
 
-        private static async void ScheduleJob(IScheduler scheduler, IJobDetail openOfficeBlindsJob, TimeSpan openOfficeBlindsTime)
+        private static async void ScheduleJob(IScheduler scheduler, IJobDetail openOfficeBlindsJob, TimeSpan openOfficeBlindsTime, bool excludeWeekends = true)
         {
-            ITrigger openOfficeBlindsTrigger = GetDailyTrigger(openOfficeBlindsTime);
+            ITrigger openOfficeBlindsTrigger = GetDailyTrigger(openOfficeBlindsTime, excludeWeekends);
             Console.WriteLine("Scheduling job for " + openOfficeBlindsTime);
 
             await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
         }
 
-        private static ITrigger GetDailyTrigger(TimeSpan openOfficeBlindsTime)
+
+
+        private static ITrigger GetDailyTrigger(TimeSpan openOfficeBlindsTime, bool excludeWeekends)
         {
-            return TriggerBuilder.Create()                         
-                          .WithDailyTimeIntervalSchedule  (s =>  s.WithIntervalInHours(24)
-                                .OnMondayThroughFriday()
-                                .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(openOfficeBlindsTime.Hours, openOfficeBlindsTime.Minutes, openOfficeBlindsTime.Seconds))
-                            )
+            return TriggerBuilder.Create()
+                          .WithDailyTimeIntervalSchedule(s =>
+                        {
+                            DailyTimeIntervalScheduleBuilder dailyTimeIntervalScheduleBuilder = s.WithIntervalInHours(24);
+                            if (excludeWeekends)
+                            {
+                                dailyTimeIntervalScheduleBuilder.OnMondayThroughFriday();
+                            }
+                            else
+                            {
+                                dailyTimeIntervalScheduleBuilder.OnEveryDay();
+                            }
+                            dailyTimeIntervalScheduleBuilder.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(openOfficeBlindsTime.Hours, openOfficeBlindsTime.Minutes, openOfficeBlindsTime.Seconds));
+                        })
                           .Build();
         }
 
