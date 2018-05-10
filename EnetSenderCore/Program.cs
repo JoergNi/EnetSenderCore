@@ -4,6 +4,7 @@ using Quartz.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EnetSenderCore
@@ -94,6 +95,7 @@ namespace EnetSenderCore
                 var openLivingRoomBlindsJob = ActionJob(() =>
                 {
                     _blindKitchen.MoveUp();
+                    Thread.Sleep(100);
                     _blindDiningRoom.MoveUp();
                 }).Build();
 
@@ -108,10 +110,14 @@ namespace EnetSenderCore
 
                 }).Build();
 
-                var closeRaffstoresJob = ActionJob(() =>
+                var closeRaffstoreLivingRoomJob = ActionJob(() =>
+                {
+                    _raffstoreLivingRoom.MoveDown();
+                }).Build();
+
+                var closeRaffstoreDiningRoomJob = ActionJob(() =>
                 {
                     _raffstoreDiningRoom.MoveDown();
-                    _raffstoreLivingRoom.MoveDown();
                 }).Build();
 
                 var openRaffstoresJob = ActionJob(() =>
@@ -135,16 +141,17 @@ namespace EnetSenderCore
                 //ScheduleJob(scheduler, closeSleepingRoomBlindsJob, now.Add(TimeSpan.FromSeconds(120)));
 
 
-                TimeSpan sunrise = new TimeSpan(8, 0, 0);
-                TimeSpan sundown = new TimeSpan(17, 25, 0);
-                ScheduleJob(scheduler, openSleepingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-30.8)));
-                ScheduleJob(scheduler, openLivingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-15.3)));
-                ScheduleJob(scheduler, openOfficeBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-3.1)));
-                ScheduleJob(scheduler, openRaffstoresJob, sunrise.Add(TimeSpan.FromMinutes(-0.7)));
+                TimeSpan sunrise = new TimeSpan(7, 50, 0);
+                TimeSpan sundown = new TimeSpan(21, 02, 0);
+                ScheduleJob(scheduler, openSleepingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-20.8)), false);
+                ScheduleJob(scheduler, openLivingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-15.3)), false);
+                ScheduleJob(scheduler, openOfficeBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-3.1)), false);
+                ScheduleJob(scheduler, openRaffstoresJob, sunrise.Add(TimeSpan.FromMinutes(-0.7)), false);
 
-                ScheduleJob(scheduler, closeRaffstoresJob, sundown.Add(TimeSpan.FromMinutes(3.5)));
+                ScheduleJob(scheduler, closeRaffstoreDiningRoomJob, sundown.Add(TimeSpan.FromMinutes(1.5)), false);
+                ScheduleJob(scheduler, closeRaffstoreLivingRoomJob, sundown.Add(TimeSpan.FromMinutes(2.2)), false);
                 ScheduleJob(scheduler, closeOfficeBlindsJob, sundown.Add(TimeSpan.FromMinutes(5.9)), false);
-                ScheduleJob(scheduler, closeLivingRoomBlindsJob, sundown.Add(TimeSpan.FromMinutes(8.7)));
+                ScheduleJob(scheduler, closeLivingRoomBlindsJob, sundown.Add(TimeSpan.FromMinutes(8.7)), false);
                 ScheduleJob(scheduler, closeSleepingRoomBlindsJob, sundown.Add(TimeSpan.FromMinutes(12.2)), false);
 
                 await scheduler.Start();
