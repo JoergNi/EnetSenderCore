@@ -11,7 +11,8 @@ namespace EnetSenderCoreTest
         [TestMethod]
         public void TestMethod1()
         {
-            _closetSwitch.TurnOff();
-        }
+          //Blind _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
+          //  _blindOfficeGarage.MoveHalf();
+    }
     }
 }

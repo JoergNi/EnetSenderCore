@@ -7,6 +7,8 @@
     <RuntimeIdentifiers>win8-arm;ubuntu.14.04-arm;ubuntu.16.04-arm;win-x64</RuntimeIdentifiers>
     <StartupObject>EnetSenderCore.Program</StartupObject>
     <Configurations>Release</Configurations>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -26,6 +28,12 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="Quartz" Version="3.0.0-beta1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System">
+      <HintPath>System</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

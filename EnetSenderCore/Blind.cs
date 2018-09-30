@@ -11,6 +11,11 @@
             ConnectAndSendMessage(() => SendBlindsMessage(100));
         }
 
+        public void MoveHalf()
+        {
+            ConnectAndSendMessage(() => SendBlindsMessage(50));
+        }
+
         public void MoveUp()
         {
             ConnectAndSendMessage(() => SendBlindsMessage(0));

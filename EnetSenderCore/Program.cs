@@ -49,7 +49,7 @@ namespace EnetSenderCore
 
         static void Main(string[] args)
         {
-
+            Console.WriteLine(typeof(Program).Assembly.GetName().Version);
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
             RunProgram().GetAwaiter().GetResult();
 
@@ -122,11 +122,17 @@ namespace EnetSenderCore
 
                 var openRaffstoresJob = ActionJob(() =>
                 {
-                    _raffstoreDiningRoom.MoveUp();
+                   _raffstoreDiningRoom.MoveUp();
                     _raffstoreLivingRoom.MoveUp();
 
                 }).Build();
 
+                var halfBlindsJob = ActionJob(() =>
+                {
+                    _blindKitchen.MoveHalf();
+                    _blindOfficeStreet.MoveHalf();
+                    _blindDiningRoom.MoveHalf();
+                }).Build();
 
                 //TimeSpan now = DateTime.Now.TimeOfDay;
 
@@ -142,11 +148,14 @@ namespace EnetSenderCore
 
 
                 TimeSpan sunrise = new TimeSpan(7, 50, 0);
-                TimeSpan sundown = new TimeSpan(21, 02, 0);
-                ScheduleJob(scheduler, openSleepingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-20.8)), false);
+                TimeSpan sundown = new TimeSpan(19, 10, 0);
+
+                ScheduleJob(scheduler, openSleepingRoomBlindsJob, TimeSpan.FromHours(10));
                 ScheduleJob(scheduler, openLivingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-15.3)), false);
                 ScheduleJob(scheduler, openOfficeBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-3.1)), false);
                 ScheduleJob(scheduler, openRaffstoresJob, sunrise.Add(TimeSpan.FromMinutes(-0.7)), false);
+
+              //  ScheduleJob(scheduler, halfBlindsJob, TimeSpan.FromHours(15), false);
 
                 ScheduleJob(scheduler, closeRaffstoreDiningRoomJob, sundown.Add(TimeSpan.FromMinutes(1.5)), false);
                 ScheduleJob(scheduler, closeRaffstoreLivingRoomJob, sundown.Add(TimeSpan.FromMinutes(2.2)), false);
@@ -163,17 +172,17 @@ namespace EnetSenderCore
             }
         }
 
-        private static async void ScheduleJob(IScheduler scheduler, IJobDetail openOfficeBlindsJob, TimeSpan openOfficeBlindsTime, bool excludeWeekends = true)
+        private static async void ScheduleJob(IScheduler scheduler, IJobDetail job, TimeSpan time, bool excludeWeekends = true)
         {
-            ITrigger openOfficeBlindsTrigger = GetDailyTrigger(openOfficeBlindsTime, excludeWeekends);
-            Console.WriteLine("Scheduling job for " + openOfficeBlindsTime);
+            ITrigger trigger = GetDailyTrigger(time, excludeWeekends);
+            Console.WriteLine("Scheduling job for " + time);
 
-            await scheduler.ScheduleJob(openOfficeBlindsJob, openOfficeBlindsTrigger);
+            await scheduler.ScheduleJob(job, trigger);
         }
 
 
 
-        private static ITrigger GetDailyTrigger(TimeSpan openOfficeBlindsTime, bool excludeWeekends)
+        private static ITrigger GetDailyTrigger(TimeSpan time, bool excludeWeekends)
         {
             return TriggerBuilder.Create()
                           .WithDailyTimeIntervalSchedule(s =>
@@ -187,7 +196,7 @@ namespace EnetSenderCore
                             {
                                 dailyTimeIntervalScheduleBuilder.OnEveryDay();
                             }
-                            dailyTimeIntervalScheduleBuilder.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(openOfficeBlindsTime.Hours, openOfficeBlindsTime.Minutes, openOfficeBlindsTime.Seconds));
+                            dailyTimeIntervalScheduleBuilder.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(time.Hours, time.Minutes, time.Seconds));
                         })
                           .Build();
         }
