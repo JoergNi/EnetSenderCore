@@ -150,7 +150,7 @@ namespace EnetSenderCore
                 TimeSpan sunrise = new TimeSpan(7, 50, 0);
                 TimeSpan sundown = new TimeSpan(19, 10, 0);
 
-                ScheduleJob(scheduler, openSleepingRoomBlindsJob, TimeSpan.FromHours(10));
+                ScheduleJob(scheduler, openSleepingRoomBlindsJob, TimeSpan.FromHours(10), false);
                 ScheduleJob(scheduler, openLivingRoomBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-15.3)), false);
                 ScheduleJob(scheduler, openOfficeBlindsJob, sunrise.Add(TimeSpan.FromMinutes(-3.1)), false);
                 ScheduleJob(scheduler, openRaffstoresJob, sunrise.Add(TimeSpan.FromMinutes(-0.7)), false);
