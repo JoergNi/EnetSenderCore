@@ -16,6 +16,11 @@
             ConnectAndSendMessage(() => SendBlindsMessage(50));
         }
 
+        public void MoveThreeQuarters()
+        {
+            ConnectAndSendMessage(() => SendBlindsMessage(75));
+        }
+
         public void MoveUp()
         {
             ConnectAndSendMessage(() => SendBlindsMessage(0));
