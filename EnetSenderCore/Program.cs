@@ -1,20 +1,13 @@
 ﻿using CoordinateSharp;
 using Quartz;
-using Quartz.Impl;
 using Quartz.Logging;
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
 
 namespace EnetSenderCore
 {
-
-
-
-    class Program
+    internal partial class Program
     {
         private IDictionary<string, int> things = new Dictionary<string, int>()
         {
@@ -37,8 +30,8 @@ namespace EnetSenderCore
         private static Blind _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
         private static Blind _blindDiningRoom = new Blind("RolloEssen", 21);
         private static Blind _blindKitchen = new Blind("RolloKueche", 23);
-        private static Blind _blindPaulsRoom          = new Blind("RolloPaulsZimmer", 25);
-        private static Blind _blindDisneyRoom          = new Blind("RolloDisneyZimmer", 24);
+        private static Blind _blindPaulsRoom = new Blind("RolloPaulsZimmer", 25);
+        private static Blind _blindDisneyRoom = new Blind("RolloDisneyZimmer", 24);
         private static Blind _blindSleepingRoom = new Blind("RolloSchlafzimmer", 22);
 
         private static Blind _raffstoreDiningRoom = new Blind("RaffstoreEssen", 19);
@@ -57,7 +50,7 @@ namespace EnetSenderCore
                 });
         }
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             Console.WriteLine(typeof(Program).Assembly.GetName().Version);
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
@@ -65,7 +58,11 @@ namespace EnetSenderCore
 
             while (true)
             {
-                if (LastInitTime.Date < DateTime.Now.Date) Initialize();
+                if (LastInitTime.Date < DateTime.Now.Date)
+                {
+                    Initialize();
+                }
+
                 foreach (Job job in Jobs)
                 {
                     job.Check();
@@ -87,7 +84,7 @@ namespace EnetSenderCore
             Console.WriteLine(localSunRise);
             Console.WriteLine(localSunSet);
 
-            var closeOfficeBlindsJob = new Job(Min(localSunSet.AddMinutes(10), TimeSpan.FromHours(22)), () =>
+            var closeOfficeBlindsJob = new Job(Min(localSunSet.AddMinutes(10), TimeSpan.FromHours(20)), () =>
             {
                 _blindOfficeGarage.MoveDown();
                 _blindOfficeStreet.MoveDown();
@@ -132,14 +129,14 @@ namespace EnetSenderCore
             {
                 _blindPaulsRoom.MoveDown();
             });
-            Jobs.Add(closeSleepingRoomBlindsJob);
+            // Jobs.Add(closeSleepingRoomBlindsJob);
 
             var openSleepingRoomBlindsJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(10)), () =>
             {
                 _blindSleepingRoom.MoveUp();
 
             }, true);
-           // Jobs.Add(openSleepingRoomBlindsJob);
+            // Jobs.Add(openSleepingRoomBlindsJob);
 
             var closeRaffstoreLivingRoomJob = new Job(Min(localSunSet.AddMinutes(4), TimeSpan.FromHours(23)), () =>
             {
@@ -161,8 +158,11 @@ namespace EnetSenderCore
             }, true);
             Jobs.Add(openRaffstoresJob);
 
-         
-            if (LastInitTime.Month>3 && LastInitTime.Month < 10)
+            bool isSummer = LastInitTime.Month > 3 && LastInitTime.Month < 10;
+            bool isHot = true;
+
+
+            if (isSummer)
             {
                 var southRoomsShader = new Job(DateTime.Today.AddHours(9), () =>
                 {
@@ -178,17 +178,18 @@ namespace EnetSenderCore
                     _blindDiningRoom.MoveHalf();
                 });
                 Jobs.Add(halfBlindsJob);
-                var southRoomsOpen = new Job(DateTime.Today.AddHours(17.5), () =>
+                if (!isHot)
                 {
-                    _blindPaulsRoom.MoveUp();
-                    Thread.Sleep(TimeSpan.FromMinutes(1));
-                    _blindDisneyRoom.MoveUp();
-                });
-                Jobs.Add(southRoomsOpen);
-            }
-         
+                    var southRoomsOpen = new Job(DateTime.Today.AddHours(17.5), () =>
+                    {
+                        _blindPaulsRoom.MoveUp();
+                        Thread.Sleep(TimeSpan.FromMinutes(1));
+                        _blindDisneyRoom.MoveUp();
+                    });
+                    Jobs.Add(southRoomsOpen);
+                }
 
-         
+            }
 
         }
 
@@ -201,56 +202,6 @@ namespace EnetSenderCore
         {
             return new DateTime(Math.Max(dateTime.Ticks, DateTime.Today.Add(timeSpan).Ticks));
         }
-
-        public class Job
-        {
-            public Action Action { get; set; }
-            public DateTime Time { get; set; }
-            public bool DoneForToday { get; set; }
-
-            public bool IgnoreOnWeekends { get; set; }
-
-            internal void Check()
-            {
-                if (!DoneForToday && IgnoreOnWeekends && (DateTime.Now.DayOfWeek == DayOfWeek.Saturday || DateTime.Now.DayOfWeek == DayOfWeek.Sunday))
-                {
-                    DoneForToday = true;
-                }
-                if (!DoneForToday && DateTime.Now > Time)
-                {
-
-                    Action();
-                    DoneForToday = true;
-                }
-            }
-
-            public Job(DateTime time, Action action)
-            {
-                Time = time;
-                if (Time < DateTime.Now)
-                {
-                    DoneForToday = true;
-                }
-                else
-                {
-                    DoneForToday = false;
-                }
-                Action = action;
-            }
-
-            public Job(DateTime time, Action action, bool ignoreOnWeekends):this(time, action)
-            {
-                IgnoreOnWeekends = true;
-            }
-        }
-
-
-
-      
-
-
-
-
     }
 
 }
