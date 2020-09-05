@@ -129,7 +129,7 @@ namespace EnetSenderCore
             {
                 _blindPaulsRoom.MoveDown();
             });
-            // Jobs.Add(closeSleepingRoomBlindsJob);
+            Jobs.Add(closePaulsRoomBlindsJob);
 
             var openSleepingRoomBlindsJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(10)), () =>
             {
@@ -159,18 +159,12 @@ namespace EnetSenderCore
             Jobs.Add(openRaffstoresJob);
 
             bool isSummer = LastInitTime.Month > 3 && LastInitTime.Month < 10;
-            bool isHot = true;
+            bool isHot = false;
 
 
             if (isSummer)
             {
-                var southRoomsShader = new Job(DateTime.Today.AddHours(9), () =>
-                {
-                    _blindPaulsRoom.MoveThreeQuarters();
-                    Thread.Sleep(TimeSpan.FromMinutes(1));
-                    _blindDisneyRoom.MoveThreeQuarters();
-                });
-                Jobs.Add(southRoomsShader);
+               
                 var halfBlindsJob = new Job(DateTime.Today.AddHours(14), () =>
                 {
                     _blindKitchen.MoveHalf();
@@ -178,8 +172,15 @@ namespace EnetSenderCore
                     _blindDiningRoom.MoveHalf();
                 });
                 Jobs.Add(halfBlindsJob);
-                if (!isHot)
+                if (isHot)
                 {
+                    var southRoomsShader = new Job(DateTime.Today.AddHours(9), () =>
+                    {
+                        _blindPaulsRoom.MoveThreeQuarters();
+                        Thread.Sleep(TimeSpan.FromMinutes(1));
+                        _blindDisneyRoom.MoveThreeQuarters();
+                    });
+                    Jobs.Add(southRoomsShader);
                     var southRoomsOpen = new Job(DateTime.Today.AddHours(17.5), () =>
                     {
                         _blindPaulsRoom.MoveUp();

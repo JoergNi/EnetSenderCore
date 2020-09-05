@@ -3,12 +3,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
-    <!--<RuntimeFrameworkVersion>2.0.0-beta-001737-00</RuntimeFrameworkVersion>-->
+    <RuntimeFrameworkVersion>2.1.0</RuntimeFrameworkVersion>
     <RuntimeIdentifiers>win8-arm;ubuntu.14.04-arm;ubuntu.16.04-arm;win-x64</RuntimeIdentifiers>
     <StartupObject>EnetSenderCore.Program</StartupObject>
     <Configurations>Release</Configurations>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
