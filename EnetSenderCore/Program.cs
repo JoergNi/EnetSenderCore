@@ -21,7 +21,7 @@ namespace EnetSenderCore
             {"Ding5Wohnzimmer",27 },
             { "RolloKueche",23},
             { "RolloSchlafzimmer",22},
-            { "RolloDisneyZimmer",24},
+            { "RolloLeasZimmer",24},
             { "RolloPaulsZimmer",25},
 
         };
@@ -31,7 +31,7 @@ namespace EnetSenderCore
         private static Blind _blindDiningRoom = new Blind("RolloEssen", 21);
         private static Blind _blindKitchen = new Blind("RolloKueche", 23);
         private static Blind _blindPaulsRoom = new Blind("RolloPaulsZimmer", 25);
-        private static Blind _blindDisneyRoom = new Blind("RolloDisneyZimmer", 24);
+        private static Blind _blindLeasRoom = new Blind("RolloLeasZimmer", 24);
         private static Blind _blindSleepingRoom = new Blind("RolloSchlafzimmer", 22);
 
         private static Blind _raffstoreDiningRoom = new Blind("RaffstoreEssen", 19);
@@ -88,14 +88,14 @@ namespace EnetSenderCore
             {
                 _blindOfficeGarage.MoveDown();
                 _blindOfficeStreet.MoveDown();
-            });
+            },false);
             Jobs.Add(closeOfficeBlindsJob);
 
-            var openOfficeBlindsJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(7.5)), () =>
+            var openOfficeBlindsJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(8.25)), () =>
             {
                 _blindOfficeGarage.MoveUp();
                 _blindOfficeStreet.MoveUp();
-            }, true);
+            }, false);
             Jobs.Add(openOfficeBlindsJob);
 
             var closeLivingRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(8), TimeSpan.FromHours(22)), () =>
@@ -105,7 +105,7 @@ namespace EnetSenderCore
                 Thread.Sleep(1000);
                 _blindKitchen.MoveDown();
                 _blindDiningRoom.MoveDown();
-            });
+            }, false);
             Jobs.Add(closeLivingRoomBlindsJob);
 
             var openLivingRoomBlindsJob = new Job(Max(localSunRise.AddMinutes(8), TimeSpan.FromHours(7.45)), () =>
@@ -116,38 +116,44 @@ namespace EnetSenderCore
                 _blindKitchen.MoveUp();
                 Thread.Sleep(1000);
                 _blindDiningRoom.MoveUp();
-            }, true);
+            }, false);
             Jobs.Add(openLivingRoomBlindsJob);
 
             var closeSleepingRoomBlindsJob = new Job(Min(localSunSet, TimeSpan.FromHours(22)), () =>
             {
                 _blindSleepingRoom.MoveDown();
-            });
+            }, false);
             Jobs.Add(closeSleepingRoomBlindsJob);
 
-            var closePaulsRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(2), TimeSpan.FromHours(20)), () =>
+            var closePaulsRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(2), TimeSpan.FromHours(22)), () =>
             {
                 _blindPaulsRoom.MoveDown();
-            });
+            }, false);
             Jobs.Add(closePaulsRoomBlindsJob);
+
+            var closeLeasRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(1), TimeSpan.FromHours(22)), () =>
+            {
+                _blindLeasRoom.MoveDown();
+            }, false);
+            Jobs.Add(closeLeasRoomBlindsJob);
 
             var openSleepingRoomBlindsJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(10)), () =>
             {
                 _blindSleepingRoom.MoveUp();
 
-            }, true);
-            // Jobs.Add(openSleepingRoomBlindsJob);
+            }, false);
+            Jobs.Add(openSleepingRoomBlindsJob);
 
             var closeRaffstoreLivingRoomJob = new Job(Min(localSunSet.AddMinutes(4), TimeSpan.FromHours(23)), () =>
             {
                 _raffstoreLivingRoom.MoveDown();
-            });
+            }, false);
             Jobs.Add(closeRaffstoreLivingRoomJob);
 
             var closeRaffstoreDiningRoomJob = new Job(Min(localSunSet.AddMinutes(3), TimeSpan.FromHours(22)), () =>
             {
                 _raffstoreDiningRoom.MoveDown();
-            });
+            }, false);
             Jobs.Add(closeRaffstoreDiningRoomJob);
 
             var openRaffstoresJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(7.6)), () =>
@@ -155,7 +161,7 @@ namespace EnetSenderCore
                 _raffstoreDiningRoom.MoveUp();
                 _raffstoreLivingRoom.MoveUp();
 
-            }, true);
+            }, false);
             Jobs.Add(openRaffstoresJob);
 
             bool isSummer = LastInitTime.Month > 3 && LastInitTime.Month < 10;
@@ -165,12 +171,12 @@ namespace EnetSenderCore
             if (isSummer)
             {
                
-                var halfBlindsJob = new Job(DateTime.Today.AddHours(14), () =>
+                var halfBlindsJob = new Job(DateTime.Today.AddHours(13.5), () =>
                 {
                     _blindKitchen.MoveHalf();
                     _blindOfficeStreet.MoveHalf();
                     _blindDiningRoom.MoveHalf();
-                });
+                }, false);
                 Jobs.Add(halfBlindsJob);
                 if (isHot)
                 {
@@ -178,15 +184,15 @@ namespace EnetSenderCore
                     {
                         _blindPaulsRoom.MoveThreeQuarters();
                         Thread.Sleep(TimeSpan.FromMinutes(1));
-                        _blindDisneyRoom.MoveThreeQuarters();
-                    });
+                        _blindLeasRoom.MoveThreeQuarters();
+                    }, false);
                     Jobs.Add(southRoomsShader);
                     var southRoomsOpen = new Job(DateTime.Today.AddHours(17.5), () =>
                     {
                         _blindPaulsRoom.MoveUp();
                         Thread.Sleep(TimeSpan.FromMinutes(1));
-                        _blindDisneyRoom.MoveUp();
-                    });
+                        _blindLeasRoom.MoveUp();
+                    }, false);
                     Jobs.Add(southRoomsOpen);
                 }
 

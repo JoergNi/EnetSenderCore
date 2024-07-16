@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnetSenderCore", "EnetSenderCore.csproj", "{44FAC709-2021-4FD7-AC0D-E1BD5826E107}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EnetSenderCoreTest", "EnetSenderCoreTest\EnetSenderCoreTest.csproj", "{20F052FC-014B-41A3-8E13-DF0C1D9D4B0E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{44FAC709-2021-4FD7-AC0D-E1BD5826E107}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44FAC709-2021-4FD7-AC0D-E1BD5826E107}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20F052FC-014B-41A3-8E13-DF0C1D9D4B0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20F052FC-014B-41A3-8E13-DF0C1D9D4B0E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B3AD2B55-A626-4FBC-9C7C-411D89EF1FEA}
+	EndGlobalSection
+EndGlobal

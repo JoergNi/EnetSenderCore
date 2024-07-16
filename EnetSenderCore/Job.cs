@@ -26,7 +26,7 @@ namespace EnetSenderCore
                 }
             }
 
-            public Job(DateTime time, Action action)
+            private Job(DateTime time, Action action)
             {
                 Time = time;
                 if (Time < DateTime.Now)
@@ -42,17 +42,8 @@ namespace EnetSenderCore
 
             public Job(DateTime time, Action action, bool ignoreOnWeekends):this(time, action)
             {
-                IgnoreOnWeekends = true;
+                IgnoreOnWeekends = ignoreOnWeekends;
             }
         }
-
-
-
-      
-
-
-
-
     }
-
 }

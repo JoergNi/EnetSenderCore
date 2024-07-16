@@ -20,7 +20,6 @@ namespace EnetSenderCore
             {
                 if (level >= LogLevel.Info && func != null)
                 {
-
                     string message = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] [" + level + "] " + func() + " " + exception;
                     Console.WriteLine(message);
                     File.AppendAllText(_logFile.FullName, message + "\r\n");
