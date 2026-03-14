@@ -1,14 +1,21 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <PublishAot>False</PublishAot>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+    <RuntimeIdentifiers>win-arm64;linux-arm;win-x64</RuntimeIdentifiers>
+    <StartupObject>EnetSenderNet.Program</StartupObject>
+    <Configurations>Release</Configurations>
+    <AssemblyVersion>1.5.0.0</AssemblyVersion>
+    <FileVersion>1.5.0.0</FileVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;NETCOREAPP2_0</DefineConstants>
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,10 +25,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CoordinateSharp" Version="2.24.2.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Quartz" Version="3.11.0" />
-    <PackageReference Include="Quartz.Jobs" Version="3.11.0" />
+    <PackageReference Include="CoordinateSharp" Version="3.4.1.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Quartz" Version="3.16.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resource1.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resource1.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resource1.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

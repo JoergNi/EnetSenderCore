@@ -1,4 +1,5 @@
 using EnetSenderNet;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Threading;
 
@@ -12,8 +13,11 @@ namespace EnetSenderNetTest
         [TestMethod]
         public void TestMethod1()
         {
-            var _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 11);
-            _blindOfficeGarage.MoveHalf();
-        }
+           var _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
+           _blindOfficeGarage.MoveUp();
+            Thread.Sleep(10000);
+    }
+
+     
     }
 }

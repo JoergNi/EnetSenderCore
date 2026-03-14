@@ -1,6 +1,9 @@
-﻿using CoordinateSharp;
+using CoordinateSharp;
 using Quartz;
 using Quartz.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace EnetSenderNet
 {
@@ -71,12 +74,8 @@ namespace EnetSenderNet
 
         private static void Initialize()
         {
-            _blindOfficeGarage.MoveUp();
             LastInitTime = DateTime.Now;
-            Coordinate c = new Coordinate();
-            c.Latitude = new CoordinatePart(50.921210, CoordinateType.Lat);
-            c.Longitude = new CoordinatePart(7.086539, CoordinateType.Long);
-            c.GeoDate = LastInitTime;
+            Coordinate c = new Coordinate(50.921210, 7.086539, LastInitTime);
             DateTime localSunRise = new DateTime(c.CelestialInfo.SunRise.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
             DateTime localSunSet = new DateTime(c.CelestialInfo.SunSet.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
             Console.WriteLine(localSunRise);
@@ -86,7 +85,7 @@ namespace EnetSenderNet
             {
                 _blindOfficeGarage.MoveDown();
                 _blindOfficeStreet.MoveDown();
-            }, false);
+            },false);
             Jobs.Add(closeOfficeBlindsJob);
 
             var openOfficeBlindsJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(8.25)), () =>
@@ -117,19 +116,19 @@ namespace EnetSenderNet
             }, false);
             Jobs.Add(openLivingRoomBlindsJob);
 
-            var closeSleepingRoomBlindsJob = new Job(Min(localSunSet, TimeSpan.FromHours(19.5)), () =>
+            var closeSleepingRoomBlindsJob = new Job(Min(localSunSet, TimeSpan.FromHours(22)), () =>
             {
                 _blindSleepingRoom.MoveDown();
             }, false);
             Jobs.Add(closeSleepingRoomBlindsJob);
 
-            var closePaulsRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(2), TimeSpan.FromHours(19.5)), () =>
+            var closePaulsRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(2), TimeSpan.FromHours(22)), () =>
             {
                 _blindPaulsRoom.MoveDown();
             }, false);
             Jobs.Add(closePaulsRoomBlindsJob);
 
-            var closeLeasRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(1), TimeSpan.FromHours(19.5)), () =>
+            var closeLeasRoomBlindsJob = new Job(Min(localSunSet.AddMinutes(1), TimeSpan.FromHours(22)), () =>
             {
                 _blindLeasRoom.MoveDown();
             }, false);
@@ -140,7 +139,14 @@ namespace EnetSenderNet
                 _blindSleepingRoom.MoveUp();
 
             }, false);
-            Jobs.Add(openSleepingRoomBlindsJob);
+            //Jobs.Add(openSleepingRoomBlindsJob);
+
+            var openLeasRoomBlindsJob = new Job(DateTime.Today.AddHours(9), () =>
+            {
+                _blindLeasRoom.MoveUp();
+
+            }, false);
+            Jobs.Add(openLeasRoomBlindsJob);
 
             var closeRaffstoreLivingRoomJob = new Job(Min(localSunSet.AddMinutes(4), TimeSpan.FromHours(23)), () =>
             {
@@ -154,7 +160,7 @@ namespace EnetSenderNet
             }, false);
             Jobs.Add(closeRaffstoreDiningRoomJob);
 
-            var openRaffstoresJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(7.6)), () =>
+            var openRaffstoresJob = new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(10)), () =>
             {
                 _raffstoreDiningRoom.MoveUp();
                 _raffstoreLivingRoom.MoveUp();
@@ -168,7 +174,7 @@ namespace EnetSenderNet
 
             if (isSummer)
             {
-
+               
                 var halfBlindsJob = new Job(DateTime.Today.AddHours(13.5), () =>
                 {
                     _blindKitchen.MoveHalf();

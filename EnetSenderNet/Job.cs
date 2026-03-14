@@ -1,4 +1,6 @@
-﻿namespace EnetSenderNet
+﻿using System;
+
+namespace EnetSenderNet
 {
     partial class Program
     {

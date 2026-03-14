@@ -1,4 +1,6 @@
-﻿using Quartz;
+﻿using System;
+using System.Threading.Tasks;
+using Quartz;
 
 namespace EnetSenderNet
 {
