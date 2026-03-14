@@ -37,6 +37,8 @@ namespace EnetSenderNet
         private static Blind _raffstoreDiningRoom = new Blind("RaffstoreEssen", 19);
         private static Blind _raffstoreLivingRoom = new Blind("RaffstoreTerassenTür", 20);
 
+        private static readonly WeatherService _weather = new WeatherService(50.921210, 7.086539);
+
         public static DateTime LastInitTime { get; private set; }
 
         public static IList<Job> Jobs = new List<Job>();
@@ -50,7 +52,7 @@ namespace EnetSenderNet
                 });
         }
 
-        private static void QueryAllChannels()
+private static void QueryAllChannels()
         {
             var request = new EnetCommandMessage { Command = "GET_CHANNEL_INFO_ALL_REQ" };
             string response = _blindOfficeGarage.SendRequest(request.GetMessageString());
@@ -58,11 +60,36 @@ namespace EnetSenderNet
             Console.WriteLine(response);
         }
 
+        private static void LogThingStates()
+        {
+            Thing[] things = {
+                _closetSwitch,
+                _blindOfficeStreet,
+                _blindOfficeGarage,
+                _raffstoreDiningRoom,
+                _raffstoreLivingRoom,
+                _blindDiningRoom,
+                _blindSleepingRoom,
+                _blindKitchen,
+                _blindLeasRoom,
+                _blindPaulsRoom,
+                new Blind("Ding5Wohnzimmer", 27),
+                new Blind("Ding3Wohnzimmer", 28),
+            };
+
+            foreach (var thing in things)
+            {
+                var state = thing.GetState();
+                Console.WriteLine($"[Ch{thing.Channel:D2}] {thing.Name,-30} Value={state?.Value,3}  State={state?.State}");
+            }
+        }
+
         private static void Main(string[] args)
         {
             Console.WriteLine(typeof(Program).Assembly.GetName().Version);
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
             QueryAllChannels();
+            LogThingStates();
             // RunProgram().GetAwaiter().GetResult();
 
             while (true)
@@ -178,7 +205,7 @@ namespace EnetSenderNet
             Jobs.Add(openRaffstoresJob);
 
             bool isSummer = LastInitTime.Month > 3 && LastInitTime.Month < 10;
-            bool isHot = false;
+            bool isHot = _weather.IsHot();
 
 
             if (isSummer)
