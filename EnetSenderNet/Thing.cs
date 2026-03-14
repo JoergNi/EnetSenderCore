@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace EnetSenderNet
 {
@@ -18,8 +19,10 @@ namespace EnetSenderNet
         private const string ServerIp = "192.168.178.34";
         private const int ServerPort = 9050;
 
+        private static readonly Regex ValueRegex = new("\"VALUE\":\"(-?\\d+)\"", RegexOptions.Compiled);
+        private static readonly Regex StateRegex = new("\"STATE\":\"([^\"]+)\"", RegexOptions.Compiled);
+
         private Socket _sender;
-        private byte[] _bytes = new byte[1024];
 
         public string Name { get; }
         public int Channel { get; }
@@ -45,8 +48,9 @@ namespace EnetSenderNet
 
         public void ReceiveMessage()
         {
-            int bytesRec = _sender.Receive(_bytes);
-            Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(_bytes, 0, bytesRec).Trim());
+            var buffer = new byte[1024];
+            int bytesRec = _sender.Receive(buffer);
+            Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(buffer, 0, bytesRec).Trim());
         }
 
         public string SendRequest(string message, int receiveTimeoutMs = 3000)
@@ -68,8 +72,8 @@ namespace EnetSenderNet
             var signIn = new EnetCommandMessage { Channel = Channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
             string response = SendRequest(signIn.GetMessageString(), receiveTimeoutMs: 500);
 
-            var valueMatch = System.Text.RegularExpressions.Regex.Match(response, "\"VALUE\":\"(\\d+)\"");
-            var stateMatch = System.Text.RegularExpressions.Regex.Match(response, "\"STATE\":\"([^\"]+)\"");
+            var valueMatch = ValueRegex.Match(response);
+            var stateMatch = StateRegex.Match(response);
 
             if (!valueMatch.Success || !stateMatch.Success)
                 return null;
