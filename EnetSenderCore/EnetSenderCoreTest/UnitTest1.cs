@@ -13,8 +13,8 @@ namespace EnetSenderCoreTest
         [TestMethod]
         public void TestMethod1()
         {
-           var _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 19);
-           _blindOfficeGarage.MoveUp();
+           var _blindOfficeGarage = new Blind("RolloArbeitszimmerGarage", 18);
+           _blindOfficeGarage.MoveHalf();
             Thread.Sleep(10000);
     }
 

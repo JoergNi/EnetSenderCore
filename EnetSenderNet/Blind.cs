@@ -26,6 +26,11 @@
             ConnectAndSendMessage(() => SendBlindsMessage(0));
         }
 
+        public void MoveTo(int value)
+        {
+            ConnectAndSendMessage(() => SendBlindsMessage(value));
+        }
+
         public void SendBlindsMessage(int value)
         {
             var message = new EnetBlindsMessage

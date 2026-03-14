@@ -50,10 +50,19 @@ namespace EnetSenderNet
                 });
         }
 
+        private static void QueryAllChannels()
+        {
+            var request = new EnetCommandMessage { Command = "GET_CHANNEL_INFO_ALL_REQ" };
+            string response = _blindOfficeGarage.SendRequest(request.GetMessageString());
+            Console.WriteLine("GET_CHANNEL_INFO_ALL response:");
+            Console.WriteLine(response);
+        }
+
         private static void Main(string[] args)
         {
             Console.WriteLine(typeof(Program).Assembly.GetName().Version);
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
+            QueryAllChannels();
             // RunProgram().GetAwaiter().GetResult();
 
             while (true)
