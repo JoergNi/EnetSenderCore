@@ -1,6 +1,6 @@
-#!/usr/bin/with-contenv bashio
+#!/bin/sh
 
-export ENET_HOST=$(bashio::config 'enet_host')
-export ENET_PORT=$(bashio::config 'enet_port')
+export ENET_HOST=$(jq -r '.enet_host' /data/options.json)
+export ENET_PORT=$(jq -r '.enet_port' /data/options.json)
 
-exec ./EnetSenderNet
+exec dotnet EnetSenderNet.dll
