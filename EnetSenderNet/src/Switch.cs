@@ -2,6 +2,8 @@
 {
     public class Switch : Thing
     {
+        public override string ThingType => "switch";
+
         public Switch(string name, int channel) : base(name, channel)
         {
         }

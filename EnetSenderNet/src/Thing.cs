@@ -16,8 +16,9 @@ namespace EnetSenderNet
 
     public abstract class Thing
     {
-        private const string ServerIp = "192.168.178.34";
-        private const int ServerPort = 9050;
+        public virtual string ThingType => "thing";
+        private static readonly string ServerIp = Environment.GetEnvironmentVariable("ENET_HOST") ?? "192.168.178.34";
+        private static readonly int ServerPort = int.TryParse(Environment.GetEnvironmentVariable("ENET_PORT"), out var p) ? p : 9050;
 
         private static readonly Regex ValueRegex = new("\"VALUE\":\"(-?\\d+)\"", RegexOptions.Compiled);
         private static readonly Regex StateRegex = new("\"STATE\":\"([^\"]+)\"", RegexOptions.Compiled);
@@ -55,16 +56,24 @@ namespace EnetSenderNet
 
         public string SendRequest(string message, int receiveTimeoutMs = 3000)
         {
-            Connect();
-            _sender.ReceiveTimeout = receiveTimeoutMs;
-            SendMessage(message);
+            try
+            {
+                Connect();
+                _sender.ReceiveTimeout = receiveTimeoutMs;
+                SendMessage(message);
 
-            var buffer = new byte[65536];
-            var sb = new StringBuilder();
-            try { while (true) { int n = _sender.Receive(buffer); if (n == 0) break; sb.Append(Encoding.ASCII.GetString(buffer, 0, n)); } }
-            catch (SocketException) { }
-            _sender.Close();
-            return sb.ToString();
+                var buffer = new byte[65536];
+                var sb = new StringBuilder();
+                try { while (true) { int n = _sender.Receive(buffer); if (n == 0) break; sb.Append(Encoding.ASCII.GetString(buffer, 0, n)); } }
+                catch (SocketException) { }
+                _sender.Close();
+                return sb.ToString();
+            }
+            catch (SocketException se)
+            {
+                Console.WriteLine("SocketException: {0}", se.Message);
+                return string.Empty;
+            }
         }
 
         public ThingState GetState()

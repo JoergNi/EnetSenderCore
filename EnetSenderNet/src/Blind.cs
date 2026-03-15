@@ -2,6 +2,8 @@
 {
     public class Blind : Thing
     {
+        public override string ThingType => "blind";
+
         public Blind(string name, int channel) : base(name, channel)
         {
         }
