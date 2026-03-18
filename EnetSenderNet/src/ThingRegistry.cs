@@ -15,13 +15,13 @@ namespace EnetSenderNet
         public static readonly Blind Kitchen           = new Blind("RolloKueche", 23);
         public static readonly Blind LeasRoom          = new Blind("RolloLeasZimmer", 24);
         public static readonly Blind PaulsRoom         = new Blind("RolloPaulsZimmer", 25);
-        public static readonly Blind LivingRoom1       = new Blind("Ding5Wohnzimmer", 27);
-        public static readonly Blind LivingRoom2       = new Blind("Ding3Wohnzimmer", 28);
+        public static readonly DimmableLight LivingEsszimmer   = new DimmableLight("LichtEsszimmer", 27);
+        public static readonly DimmableLight LivingWohnbereich = new DimmableLight("LichtWohnbereich", 28);
 
         public static readonly IReadOnlyList<Thing> All = new Thing[]
         {
             Schrank, OfficeStreet, OfficeGarage, RaffstoreDining, RaffstoreLiving,
-            DiningRoom, SleepingRoom, Kitchen, LeasRoom, PaulsRoom, LivingRoom1, LivingRoom2
+            DiningRoom, SleepingRoom, Kitchen, LeasRoom, PaulsRoom, LivingWohnbereich, LivingEsszimmer
         };
 
         public static readonly ConcurrentDictionary<int, ThingState> StateCache = new();

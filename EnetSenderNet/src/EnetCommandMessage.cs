@@ -95,5 +95,35 @@ namespace EnetSenderNet
         public string State { get; set; }
     }
 
+    [DataContract]
+    public class EnetDimmerMessage : EnetCommandMessage
+    {
+        // {"CMD":"ITEM_VALUE_SET","VALUES":[{"NUMBER":"27","STATE":"ON","VALUE":"128"}],"PROTOCOL":"0.03"}
+        // Value 0-100: 0 = off, 1-100 = on at brightness %
+
+        public EnetDimmerMessage()
+        {
+            Command = "ITEM_VALUE_SET";
+        }
+        public override IList<int> Items { get { return null; } }
+
+        public int Value { get; set; }  // 0-255
+
+        [DataMember(Name = "VALUES")]
+        public IList<DimmerState> Values { get { return new List<DimmerState> { new DimmerState { Number = Channel, Value = Value } }; } }
+    }
+
+    [DataContract]
+    public class DimmerState
+    {
+        [DataMember(Name = "NUMBER")]
+        public int Number { get; set; }
+
+        [DataMember(Name = "STATE")]
+        public string State { get { return "ON"; } }
+
+        [DataMember(Name = "VALUE")]
+        public int Value { get; set; }
+    }
 
 }

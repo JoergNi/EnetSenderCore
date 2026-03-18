@@ -10,7 +10,7 @@ CONFIG_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
-PLATFORMS = ["cover", "switch"]
+PLATFORMS = ["cover", "switch", "light"]
 
 
 async def async_setup(hass, config):

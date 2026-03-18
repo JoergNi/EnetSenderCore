@@ -33,6 +33,8 @@ namespace EnetSenderNet
             var builder = WebApplication.CreateBuilder(args);
             var app = builder.Build();
 
+            app.MapGet("/version", () => typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown");
+
             app.MapGet("/things", () => ThingRegistry.All.Select(t => new
             {
                 channel = t.Channel,
@@ -46,7 +48,10 @@ namespace EnetSenderNet
                 var thing = ThingRegistry.All.FirstOrDefault(t => t.Channel == channel);
                 if (thing is Blind b) b.MoveUp();
                 else if (thing is Switch sw) sw.TurnOff();
-                return thing != null ? Results.Ok() : Results.NotFound();
+                else if (thing is DimmableLight dl) dl.TurnOff();
+                else return Results.NotFound();
+                Task.Run(() => RefreshChannel(thing));
+                return Results.Ok();
             });
 
             app.MapPost("/things/{channel}/down", (int channel) =>
@@ -54,17 +59,63 @@ namespace EnetSenderNet
                 var thing = ThingRegistry.All.FirstOrDefault(t => t.Channel == channel);
                 if (thing is Blind b) b.MoveDown();
                 else if (thing is Switch sw) sw.TurnOn();
-                return thing != null ? Results.Ok() : Results.NotFound();
+                else if (thing is DimmableLight dl) dl.TurnOn();
+                else return Results.NotFound();
+                Task.Run(() => RefreshChannel(thing));
+                return Results.Ok();
             });
 
             app.MapPost("/things/{channel}/position/{value}", (int channel, int value) =>
             {
                 var thing = ThingRegistry.All.FirstOrDefault(t => t.Channel == channel);
-                if (thing is Blind b) { b.MoveTo(value); return Results.Ok(); }
+                if (thing is Blind b)
+                {
+                    b.MoveTo(value);
+                    Task.Run(() => RefreshChannel(thing));
+                    return Results.Ok();
+                }
                 return Results.BadRequest("Not a blind");
             });
 
+            app.MapPost("/things/{channel}/brightness/{value}", (int channel, int value) =>  // value 0-100
+            {
+                var thing = ThingRegistry.All.FirstOrDefault(t => t.Channel == channel);
+                if (thing is DimmableLight dl)
+                {
+                    dl.SetBrightness(value);
+                    Task.Run(() => RefreshChannel(thing));
+                    return Results.Ok();
+                }
+                return Results.BadRequest("Not a dimmable light");
+            });
+
             app.Run("http://0.0.0.0:8080");
+        }
+
+        private static void RefreshChannel(Thing thing)
+        {
+            // Immediate read — hardware reports correct state right after a command
+            var initial = thing.GetState();
+            if (initial != null && initial.Value >= 0)
+                ThingRegistry.StateCache[thing.Channel] = initial;
+
+            // Then poll until stable (covers blinds that are still moving)
+            string lastState = $"{initial?.Value}:{initial?.State}";
+            int unchanged = 0;
+            while (unchanged < 2)
+            {
+                Thread.Sleep(3000);
+                var state = thing.GetState();
+                if (state == null) break;
+                if (state.Value >= 0)
+                {
+                    ThingRegistry.StateCache[thing.Channel] = state;
+                    string key = $"{state.Value}:{state.State}";
+                    if (key == lastState) unchanged++;
+                    else unchanged = 0;
+                    lastState = key;
+                }
+            }
         }
 
         private static void RunScheduler()
@@ -81,6 +132,8 @@ namespace EnetSenderNet
             }
         }
 
+        private static readonly HashSet<int> _refreshingChannels = new HashSet<int>();
+
         private static void RefreshStateCache()
         {
             while (true)
@@ -88,8 +141,20 @@ namespace EnetSenderNet
                 foreach (var thing in ThingRegistry.All)
                 {
                     var state = thing.GetState();
-                    if (state != null)
+                    if (state != null && state.Value >= 0)
+                    {
+                        bool changed = !ThingRegistry.StateCache.TryGetValue(thing.Channel, out var cached)
+                            || cached.Value != state.Value || cached.State != state.State;
                         ThingRegistry.StateCache[thing.Channel] = state;
+                        if (changed)
+                        {
+                            lock (_refreshingChannels)
+                            {
+                                if (_refreshingChannels.Add(thing.Channel))
+                                    Task.Run(() => { RefreshChannel(thing); lock (_refreshingChannels) { _refreshingChannels.Remove(thing.Channel); } });
+                            }
+                        }
+                    }
                     Thread.Sleep(500);
                 }
                 Thread.Sleep(60000);
