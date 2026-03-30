@@ -1,8 +1,5 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim-arm64v8
-RUN apt-get update && apt-get install -y --no-install-recommends jq && rm -rf /var/lib/apt/lists/*
+FROM mcr.microsoft.com/dotnet/runtime-deps@sha256:c3f438e63517eaefe1cf80e4c7fa2d6c602f9d9295a44105465268eff68c8ad2
 WORKDIR /app
-COPY publish/ .
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
+COPY publish_single/ .
 EXPOSE 8080
-CMD ["/run.sh"]
+CMD ["/app/EnetSenderNet"]

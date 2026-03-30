@@ -20,10 +20,16 @@ namespace EnetSenderNet
         public static DateTime LastInitTime { get; private set; }
         public static IList<Job> Jobs = new List<Job>();
 
+        public static string FirmwareVersion { get; private set; } = "unknown";
+        public static string HardwareVersion { get; private set; } = "unknown";
+        public static string EnetVersion     { get; private set; } = "unknown";
+        public static int[]  DeviceTypes     { get; private set; } = Array.Empty<int>();
+
         private static void Main(string[] args)
         {
             Console.WriteLine(typeof(Program).Assembly.GetName().Version);
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
+            QueryVersion();
             QueryAllChannels();
             LogThingStates();
 
@@ -34,6 +40,23 @@ namespace EnetSenderNet
             var app = builder.Build();
 
             app.MapGet("/version", () => typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown");
+
+            app.MapGet("/diagnostics", () => new
+            {
+                addonVersion  = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown",
+                firmware      = FirmwareVersion,
+                hardware      = HardwareVersion,
+                enet          = EnetVersion,
+                deviceTypes   = DeviceTypes.Select((type, index) => new { channel = index, type }).Where(x => x.type != 0),
+                things        = ThingRegistry.All.Select(t => new
+                {
+                    channel  = t.Channel,
+                    name     = t.Name,
+                    type     = t.ThingType,
+                    hwType   = DeviceTypes.Length > t.Channel ? DeviceTypes[t.Channel] : -1,
+                    state    = ThingRegistry.StateCache.TryGetValue(t.Channel, out var s) ? s : null
+                })
+            });
 
             app.MapGet("/things", () => ThingRegistry.All.Select(t => new
             {
@@ -161,12 +184,33 @@ namespace EnetSenderNet
             }
         }
 
+        private static void QueryVersion()
+        {
+            var request = new EnetCommandMessage { Command = "VERSION_REQ" };
+            string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString());
+            Console.WriteLine("VERSION_RES: " + response);
+            try
+            {
+                var json = Newtonsoft.Json.Linq.JObject.Parse(response.Trim().TrimEnd('\r', '\n'));
+                FirmwareVersion = json["FIRMWARE"]?.ToString() ?? "unknown";
+                HardwareVersion = json["HARDWARE"]?.ToString() ?? "unknown";
+                EnetVersion     = json["ENET"]?.ToString()     ?? "unknown";
+            }
+            catch { Console.WriteLine("Failed to parse VERSION_RES"); }
+        }
+
         private static void QueryAllChannels()
         {
             var request = new EnetCommandMessage { Command = "GET_CHANNEL_INFO_ALL_REQ" };
             string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString());
             Console.WriteLine("GET_CHANNEL_INFO_ALL response:");
             Console.WriteLine(response);
+            try
+            {
+                var json = Newtonsoft.Json.Linq.JObject.Parse(response.Trim().TrimEnd('\r', '\n'));
+                DeviceTypes = json["DEVICES"]?.ToObject<int[]>() ?? Array.Empty<int>();
+            }
+            catch { Console.WriteLine("Failed to parse GET_CHANNEL_INFO_ALL_RES"); }
         }
 
         private static void LogThingStates()
@@ -182,6 +226,7 @@ namespace EnetSenderNet
         private static void Initialize()
         {
             LastInitTime = DateTime.Now;
+            Jobs = new List<Job>();
             Coordinate c = new Coordinate(50.921210, 7.086539, LastInitTime);
             DateTime localSunRise = new DateTime(c.CelestialInfo.SunRise.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
             DateTime localSunSet = new DateTime(c.CelestialInfo.SunSet.Value.Ticks, DateTimeKind.Utc).ToLocalTime();

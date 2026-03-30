@@ -6,8 +6,8 @@
     <RuntimeIdentifiers>win-arm64;linux-arm;win-x64</RuntimeIdentifiers>
     <StartupObject>EnetSenderNet.Program</StartupObject>
     <Configurations>Release</Configurations>
-    <AssemblyVersion>1.5.5.0</AssemblyVersion>
-    <FileVersion>1.5.5.0</FileVersion>
+    <AssemblyVersion>1.5.22.0</AssemblyVersion>
+    <FileVersion>1.5.22.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

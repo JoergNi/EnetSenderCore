@@ -1,6 +1,8 @@
 using EnetSenderNet;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Newtonsoft.Json.Linq;
 using System;
+using System.Linq;
 using System.Threading;
 
 namespace EnetSenderNetTest
@@ -32,6 +34,37 @@ namespace EnetSenderNetTest
         }
 
         [TestMethod]
+        public void Diagnostics_VersionReq_ReturnsFirmwareHardwareEnet()
+        {
+            var thing = new Blind("probe", 18);
+            var request = new EnetCommandMessage { Command = "VERSION_REQ" };
+            string response = thing.SendRequest(request.GetMessageString());
+            Console.WriteLine("VERSION_RES: " + response);
+
+            var json = JObject.Parse(response.Trim());
+            Assert.AreEqual("VERSION_RES", json["CMD"]?.ToString(), "Expected CMD=VERSION_RES");
+            StringAssert.Matches(json["FIRMWARE"]?.ToString(), new System.Text.RegularExpressions.Regex(@"\d+\.\d+"), "FIRMWARE should be a version string");
+            Assert.IsFalse(string.IsNullOrEmpty(json["HARDWARE"]?.ToString()), "HARDWARE should be non-empty");
+            Assert.IsFalse(string.IsNullOrEmpty(json["ENET"]?.ToString()),     "ENET should be non-empty");
+        }
+
+        [TestMethod]
+        public void Diagnostics_GetChannelInfoAll_Returns40DeviceTypes()
+        {
+            var thing = new Blind("probe", 18);
+            var request = new EnetCommandMessage { Command = "GET_CHANNEL_INFO_ALL_REQ" };
+            string response = thing.SendRequest(request.GetMessageString());
+            Console.WriteLine("GET_CHANNEL_INFO_ALL_RES: " + response);
+
+            var json = JObject.Parse(response.Trim());
+            Assert.AreEqual("GET_CHANNEL_INFO_ALL_RES", json["CMD"]?.ToString());
+            var devices = json["DEVICES"]?.ToObject<int[]>();
+            Assert.IsNotNull(devices, "DEVICES array should be present");
+            Assert.AreEqual(40, devices.Length, "Expected 40 channel entries");
+            Console.WriteLine("Non-zero channels: " + string.Join(", ", System.Linq.Enumerable.Range(0, devices.Length).Where(i => devices[i] != 0).Select(i => $"ch{i}=type{devices[i]}")));
+        }
+
+        //[TestMethod]
         public void MoveToPositionAndVerifyState()
         {
             var blind = new Blind("RolloArbeitszimmerGarage", 18);

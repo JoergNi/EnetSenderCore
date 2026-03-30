@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace EnetSenderNet
@@ -17,8 +19,25 @@ namespace EnetSenderNet
     public abstract class Thing
     {
         public virtual string ThingType => "thing";
-        private static readonly string ServerIp = Environment.GetEnvironmentVariable("ENET_HOST") ?? "192.168.178.34";
-        private static readonly int ServerPort = int.TryParse(Environment.GetEnvironmentVariable("ENET_PORT"), out var p) ? p : 9050;
+        private static readonly string ServerIp   = GetConfig("enet_host", "ENET_HOST", "192.168.178.34");
+        private static readonly int    ServerPort = int.TryParse(GetConfig("enet_port", "ENET_PORT", "9050"), out var p) ? p : 9050;
+
+        // Priority: /data/options.json (HA addon) → env var (local dev) → hardcoded default
+        private static string GetConfig(string jsonKey, string envVar, string defaultValue)
+        {
+            const string optionsFile = "/data/options.json";
+            if (File.Exists(optionsFile))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(optionsFile));
+                    if (doc.RootElement.TryGetProperty(jsonKey, out var val))
+                        return val.ToString();
+                }
+                catch { }
+            }
+            return Environment.GetEnvironmentVariable(envVar) ?? defaultValue;
+        }
 
         private static readonly Regex ValueRegex = new("\"VALUE\":\"(-?\\d+)\"", RegexOptions.Compiled);
         private static readonly Regex StateRegex = new("\"STATE\":\"([^\"]+)\"", RegexOptions.Compiled);
