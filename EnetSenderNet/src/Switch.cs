@@ -4,29 +4,17 @@
     {
         public override string ThingType => "switch";
 
-        public Switch(string name, int channel) : base(name, channel)
+        public Switch(string name, int channel, IMobilegateSender sender = null) : base(name, channel, sender)
         {
         }
 
-        public void TurnOn()
-        {
-            ConnectAndSendMessage(() => SendOnOffMessage(true));
-        }
-
-        public void TurnOff()
-        {
-            ConnectAndSendMessage(() => SendOnOffMessage(false));
-        }
+        public void TurnOn()  => SendOnOffMessage(true);
+        public void TurnOff() => SendOnOffMessage(false);
 
         public void SendOnOffMessage(bool state)
         {
-            var message = new EnetOnOffMessage
-            {
-                Channel = Channel,
-                On = state
-            };
-            SendMessage(message.GetMessageString());
+            var message = new EnetOnOffMessage { Channel = Channel, On = state };
+            SendCommandMessage(message.GetMessageString());
         }
-
     }
 }

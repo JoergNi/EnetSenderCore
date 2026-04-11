@@ -16,6 +16,19 @@ namespace EnetSenderNet
         public bool IsUp => State == "OFF" || State == "ALL_OFF";
     }
 
+    /// <summary>Abstraction over the Mobilegate TCP transport. Injected for unit testing.</summary>
+    public interface IMobilegateSender
+    {
+        /// <summary>Send a single request and return the full response (used by GetState, health check).</summary>
+        string Send(string message, int receiveTimeoutMs = 3000);
+
+        /// <summary>
+        /// Open a session (sign-in × 2 + commandMessage + sign-out) against the given channel.
+        /// Used by all movement/on/off/brightness commands.
+        /// </summary>
+        void SendCommand(string commandMessage, int channel);
+    }
+
     public abstract class Thing
     {
         public virtual string ThingType => "thing";
@@ -42,63 +55,25 @@ namespace EnetSenderNet
         private static readonly Regex ValueRegex = new("\"VALUE\":\"(-?\\d+)\"", RegexOptions.Compiled);
         private static readonly Regex StateRegex = new("\"STATE\":\"([^\"]+)\"", RegexOptions.Compiled);
 
-        private Socket _sender;
+        private readonly IMobilegateSender _mobilegate;
 
         public string Name { get; }
         public int Channel { get; }
 
-        public Thing(string name, int channel)
+        public Thing(string name, int channel, IMobilegateSender sender = null)
         {
             Name = name;
             Channel = channel;
+            _mobilegate = sender ?? new SocketMobilegateSender(ServerIp, ServerPort);
         }
 
-        private void Connect()
-        {
-            _sender = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            _sender.Connect(new IPEndPoint(IPAddress.Parse(ServerIp), ServerPort));
-            Console.WriteLine("Socket connected to {0}", _sender.RemoteEndPoint.ToString());
-        }
-
-        public void SendMessage(string message)
-        {
-            _sender.Send(Encoding.ASCII.GetBytes(message));
-            Console.WriteLine("Sent message = {0}", message.Trim());
-        }
-
-        public void ReceiveMessage()
-        {
-            var buffer = new byte[1024];
-            int bytesRec = _sender.Receive(buffer);
-            Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(buffer, 0, bytesRec).Trim());
-        }
-
-        public string SendRequest(string message, int receiveTimeoutMs = 3000)
-        {
-            try
-            {
-                Connect();
-                _sender.ReceiveTimeout = receiveTimeoutMs;
-                SendMessage(message);
-
-                var buffer = new byte[65536];
-                var sb = new StringBuilder();
-                try { while (true) { int n = _sender.Receive(buffer); if (n == 0) break; sb.Append(Encoding.ASCII.GetString(buffer, 0, n)); } }
-                catch (SocketException) { }
-                _sender.Close();
-                return sb.ToString();
-            }
-            catch (SocketException se)
-            {
-                Console.WriteLine("SocketException: {0}", se.Message);
-                return string.Empty;
-            }
-        }
+        public string SendRequest(string message, int receiveTimeoutMs = 3000) =>
+            _mobilegate.Send(message, receiveTimeoutMs);
 
         public ThingState GetState()
         {
             var signIn = new EnetCommandMessage { Channel = Channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
-            string response = SendRequest(signIn.GetMessageString(), receiveTimeoutMs: 500);
+            string response = _mobilegate.Send(signIn.GetMessageString(), receiveTimeoutMs: 500);
 
             var valueMatch = ValueRegex.Match(response);
             var stateMatch = StateRegex.Match(response);
@@ -113,37 +88,84 @@ namespace EnetSenderNet
             };
         }
 
-        public void ConnectAndSendMessage(Action action)
+        protected void SendCommandMessage(string commandMessage) =>
+            _mobilegate.SendCommand(commandMessage, Channel);
+
+        // ── Real TCP implementation ──────────────────────────────────────────
+
+        private sealed class SocketMobilegateSender : IMobilegateSender
         {
-            try
+            private readonly string _ip;
+            private readonly int _port;
+
+            public SocketMobilegateSender(string ip, int port) { _ip = ip; _port = port; }
+
+            private Socket Connect()
             {
-                Connect();
-
-                var signInMessage = new EnetCommandMessage { Channel = Channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
-                string signInMessageString = signInMessage.GetMessageString();
-
-                SendMessage(signInMessageString);
-                ReceiveMessage();
-                SendMessage(signInMessageString);
-                ReceiveMessage();
-
-                action();
-                ReceiveMessage();
-
-                var signOutMessage = new EnetCommandMessage { Channel = Channel, Command = "ITEM_VALUE_SIGN_OUT_REQ" };
-                SendMessage(signOutMessage.GetMessageString());
-                ReceiveMessage();
-
-                _sender.Shutdown(SocketShutdown.Both);
-                _sender.Close();
+                var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                sock.Connect(new IPEndPoint(IPAddress.Parse(_ip), _port));
+                Console.WriteLine("Socket connected to {0}", sock.RemoteEndPoint);
+                return sock;
             }
-            catch (ArgumentNullException ane)
+
+            public string Send(string message, int receiveTimeoutMs = 3000)
             {
-                Console.WriteLine("ArgumentNullException : {0}", ane.ToString());
+                try
+                {
+                    var sock = Connect();
+                    sock.ReceiveTimeout = receiveTimeoutMs;
+                    sock.Send(Encoding.ASCII.GetBytes(message));
+                    Console.WriteLine("Sent message = {0}", message.Trim());
+
+                    var buffer = new byte[65536];
+                    var sb = new StringBuilder();
+                    try { while (true) { int n = sock.Receive(buffer); if (n == 0) break; sb.Append(Encoding.ASCII.GetString(buffer, 0, n)); } }
+                    catch (SocketException) { }
+                    sock.Close();
+                    return sb.ToString();
+                }
+                catch (SocketException se)
+                {
+                    Console.WriteLine("SocketException: {0}", se.Message);
+                    return string.Empty;
+                }
             }
-            catch (SocketException se)
+
+            public void SendCommand(string commandMessage, int channel)
             {
-                Console.WriteLine("SocketException : {0}", se.ToString());
+                try
+                {
+                    var sock = Connect();
+
+                    var signIn = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
+                    string signInStr = signIn.GetMessageString();
+
+                    void Send(string msg)
+                    {
+                        sock.Send(Encoding.ASCII.GetBytes(msg));
+                        Console.WriteLine("Sent message = {0}", msg.Trim());
+                    }
+                    void Receive()
+                    {
+                        var buf = new byte[1024];
+                        int n = sock.Receive(buf);
+                        Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(buf, 0, n).Trim());
+                    }
+
+                    Send(signInStr); Receive();
+                    Send(signInStr); Receive();
+                    Send(commandMessage); Receive();
+
+                    var signOut = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_OUT_REQ" };
+                    Send(signOut.GetMessageString()); Receive();
+
+                    sock.Shutdown(SocketShutdown.Both);
+                    sock.Close();
+                }
+                catch (Exception ex) when (ex is ArgumentNullException || ex is SocketException)
+                {
+                    Console.WriteLine("{0}: {1}", ex.GetType().Name, ex);
+                }
             }
         }
     }

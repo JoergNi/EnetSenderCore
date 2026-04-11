@@ -2,6 +2,7 @@ using CoordinateSharp;
 using EnetSenderNet;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Quartz.Logging;
@@ -25,9 +26,12 @@ namespace EnetSenderNet
         public static string EnetVersion     { get; private set; } = "unknown";
         public static int[]  DeviceTypes     { get; private set; } = Array.Empty<int>();
 
+        private static void Log(string message) =>
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}");
+
         private static void Main(string[] args)
         {
-            Console.WriteLine(typeof(Program).Assembly.GetName().Version);
+            Log($"Starting eNet Sender {typeof(Program).Assembly.GetName().Version}");
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
             QueryVersion();
             QueryAllChannels();
@@ -35,9 +39,24 @@ namespace EnetSenderNet
 
             Task.Run(RunScheduler);
             Task.Run(RefreshStateCache);
+            Task.Run(HeartbeatLoop);
 
             var builder = WebApplication.CreateBuilder(args);
+            builder.Logging.AddSimpleConsole(opts =>
+            {
+                opts.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+                opts.SingleLine = true;
+            });
             var app = builder.Build();
+
+            app.MapGet("/health", () =>
+            {
+                var request = new EnetCommandMessage { Command = "VERSION_REQ" };
+                string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString(), receiveTimeoutMs: 2000);
+                if (!response.Contains("VERSION_RES"))
+                    return Results.Problem("eNet Mobilegate unreachable");
+                return Results.Ok("ok");
+            });
 
             app.MapGet("/version", () => typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown");
 
@@ -141,6 +160,15 @@ namespace EnetSenderNet
             }
         }
 
+        private static void HeartbeatLoop()
+        {
+            while (true)
+            {
+                Thread.Sleep(60000);
+                Log($"heartbeat — things={ThingRegistry.All.Count} lastInit={LastInitTime:HH:mm:ss} jobs={Jobs.Count}");
+            }
+        }
+
         private static void RunScheduler()
         {
             while (true)
@@ -188,7 +216,7 @@ namespace EnetSenderNet
         {
             var request = new EnetCommandMessage { Command = "VERSION_REQ" };
             string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString());
-            Console.WriteLine("VERSION_RES: " + response);
+            Log("VERSION_RES: " + response);
             try
             {
                 var json = Newtonsoft.Json.Linq.JObject.Parse(response.Trim().TrimEnd('\r', '\n'));
@@ -196,21 +224,21 @@ namespace EnetSenderNet
                 HardwareVersion = json["HARDWARE"]?.ToString() ?? "unknown";
                 EnetVersion     = json["ENET"]?.ToString()     ?? "unknown";
             }
-            catch { Console.WriteLine("Failed to parse VERSION_RES"); }
+            catch { Log("Failed to parse VERSION_RES"); }
         }
 
         private static void QueryAllChannels()
         {
             var request = new EnetCommandMessage { Command = "GET_CHANNEL_INFO_ALL_REQ" };
             string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString());
-            Console.WriteLine("GET_CHANNEL_INFO_ALL response:");
-            Console.WriteLine(response);
+            Log("GET_CHANNEL_INFO_ALL response:");
+            Log(response);
             try
             {
                 var json = Newtonsoft.Json.Linq.JObject.Parse(response.Trim().TrimEnd('\r', '\n'));
                 DeviceTypes = json["DEVICES"]?.ToObject<int[]>() ?? Array.Empty<int>();
             }
-            catch { Console.WriteLine("Failed to parse GET_CHANNEL_INFO_ALL_RES"); }
+            catch { Log("Failed to parse GET_CHANNEL_INFO_ALL_RES"); }
         }
 
         private static void LogThingStates()
@@ -218,7 +246,7 @@ namespace EnetSenderNet
             foreach (var thing in ThingRegistry.All)
             {
                 var state = thing.GetState();
-                Console.WriteLine($"[Ch{thing.Channel:D2}] {thing.Name,-30} Value={state?.Value,3}  State={state?.State}");
+                Log($"[Ch{thing.Channel:D2}] {thing.Name,-30} Value={state?.Value,3}  State={state?.State}");
                 Thread.Sleep(500);
             }
         }
@@ -230,8 +258,7 @@ namespace EnetSenderNet
             Coordinate c = new Coordinate(50.921210, 7.086539, LastInitTime);
             DateTime localSunRise = new DateTime(c.CelestialInfo.SunRise.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
             DateTime localSunSet = new DateTime(c.CelestialInfo.SunSet.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
-            Console.WriteLine(localSunRise);
-            Console.WriteLine(localSunSet);
+            Log($"sunrise={localSunRise:HH:mm} sunset={localSunSet:HH:mm}");
 
             Jobs.Add(new Job(Min(localSunSet.AddMinutes(10), TimeSpan.FromHours(20)), () =>
             {
@@ -307,9 +334,7 @@ namespace EnetSenderNet
             {
                 Jobs.Add(new Job(DateTime.Today.AddHours(13.5), () =>
                 {
-                    ThingRegistry.Kitchen.MoveHalf();
                     ThingRegistry.OfficeStreet.MoveHalf();
-                    ThingRegistry.DiningRoom.MoveHalf();
                 }, false));
 
                 if (isHot)
