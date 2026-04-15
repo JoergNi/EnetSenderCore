@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.35027.167
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnetSenderNet", "EnetSenderNet.csproj", "{89522CE0-DE22-4100-AAA7-0403BB02EF74}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnetSenderNet", "src\EnetSenderNet.csproj", "{89522CE0-DE22-4100-AAA7-0403BB02EF74}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnetSenderNetTest", "..\..\..\..\..\Dropbox\Enet anbindung\EnetSenderNet\EnetSenderNetTest\EnetSenderNetTest.csproj", "{D20975D9-507A-463E-9FEA-7011D957EB00}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnetSenderNetTest", "src\EnetSenderNetTest\EnetSenderNetTest.csproj", "{D20975D9-507A-463E-9FEA-7011D957EB00}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
