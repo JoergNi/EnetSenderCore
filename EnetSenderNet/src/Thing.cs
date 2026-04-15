@@ -26,7 +26,7 @@ namespace EnetSenderNet
         /// Open a session (sign-in × 2 + commandMessage + sign-out) against the given channel.
         /// Used by all movement/on/off/brightness commands.
         /// </summary>
-        void SendCommand(string commandMessage, int channel);
+        void SendCommand(string commandMessage, int channel, string thingName);
     }
 
     public abstract class Thing
@@ -88,8 +88,31 @@ namespace EnetSenderNet
             };
         }
 
-        protected void SendCommandMessage(string commandMessage) =>
-            _mobilegate.SendCommand(commandMessage, Channel);
+        public static int RetryDelayMs = 1000;
+
+        protected void SendCommandMessage(string commandMessage)
+        {
+            const int maxAttempts = 3;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    _mobilegate.SendCommand(commandMessage, Channel, Name);
+                    return;
+                }
+                catch (SocketException se)
+                {
+                    Program.LogNormal($"SocketException on ch{Channel} ({Name}), attempt {attempt}/{maxAttempts}: {se.Message}");
+                    if (attempt < maxAttempts)
+                        System.Threading.Thread.Sleep(RetryDelayMs);
+                    else
+                    {
+                        Program.LogNormal($"SendCommand failed after {maxAttempts} attempts: ch{Channel} ({Name})");
+                        Program.OnCommandFailed?.Invoke($"ch{Channel} ({Name}) command failed after {maxAttempts} attempts");
+                    }
+                }
+            }
+        }
 
         // ── Real TCP implementation ──────────────────────────────────────────
 
@@ -104,7 +127,6 @@ namespace EnetSenderNet
             {
                 var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 sock.Connect(new IPEndPoint(IPAddress.Parse(_ip), _port));
-                Console.WriteLine("Socket connected to {0}", sock.RemoteEndPoint);
                 return sock;
             }
 
@@ -115,7 +137,6 @@ namespace EnetSenderNet
                     var sock = Connect();
                     sock.ReceiveTimeout = receiveTimeoutMs;
                     sock.Send(Encoding.ASCII.GetBytes(message));
-                    Console.WriteLine("Sent message = {0}", message.Trim());
 
                     var buffer = new byte[65536];
                     var sb = new StringBuilder();
@@ -124,48 +145,29 @@ namespace EnetSenderNet
                     sock.Close();
                     return sb.ToString();
                 }
-                catch (SocketException se)
+                catch (SocketException)
                 {
-                    Console.WriteLine("SocketException: {0}", se.Message);
                     return string.Empty;
                 }
             }
 
-            public void SendCommand(string commandMessage, int channel)
+            public void SendCommand(string commandMessage, int channel, string thingName)
             {
-                try
-                {
-                    var sock = Connect();
+                var sock = Connect();
+                var buf = new byte[1024];
 
-                    var signIn = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
-                    string signInStr = signIn.GetMessageString();
+                var signIn = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
+                string signInStr = signIn.GetMessageString();
 
-                    void Send(string msg)
-                    {
-                        sock.Send(Encoding.ASCII.GetBytes(msg));
-                        Console.WriteLine("Sent message = {0}", msg.Trim());
-                    }
-                    void Receive()
-                    {
-                        var buf = new byte[1024];
-                        int n = sock.Receive(buf);
-                        Console.WriteLine("Received message = {0}", Encoding.ASCII.GetString(buf, 0, n).Trim());
-                    }
+                sock.Send(Encoding.ASCII.GetBytes(signInStr)); sock.Receive(buf);
+                sock.Send(Encoding.ASCII.GetBytes(signInStr)); sock.Receive(buf);
+                sock.Send(Encoding.ASCII.GetBytes(commandMessage)); sock.Receive(buf);
 
-                    Send(signInStr); Receive();
-                    Send(signInStr); Receive();
-                    Send(commandMessage); Receive();
+                var signOut = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_OUT_REQ" };
+                sock.Send(Encoding.ASCII.GetBytes(signOut.GetMessageString())); sock.Receive(buf);
 
-                    var signOut = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_OUT_REQ" };
-                    Send(signOut.GetMessageString()); Receive();
-
-                    sock.Shutdown(SocketShutdown.Both);
-                    sock.Close();
-                }
-                catch (Exception ex) when (ex is ArgumentNullException || ex is SocketException)
-                {
-                    Console.WriteLine("{0}: {1}", ex.GetType().Name, ex);
-                }
+                sock.Shutdown(SocketShutdown.Both);
+                sock.Close();
             }
         }
     }

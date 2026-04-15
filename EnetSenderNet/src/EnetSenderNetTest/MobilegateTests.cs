@@ -20,11 +20,33 @@ namespace EnetSenderNetTest
             /// <summary>All command messages passed to SendCommand(), in order.</summary>
             public List<string> CommandMessages { get; } = new List<string>();
 
+            /// <summary>Throw SocketException for the first N calls to SendCommand.</summary>
+            public int FailCount { get; set; } = 0;
+            private int _callCount = 0;
+
             public string Send(string message, int receiveTimeoutMs = 3000) =>
                 Responses.Count > 0 ? Responses.Dequeue() : string.Empty;
 
-            public void SendCommand(string commandMessage, int channel) =>
+            public void SendCommand(string commandMessage, int channel, string thingName)
+            {
+                if (++_callCount <= FailCount)
+                    throw new System.Net.Sockets.SocketException(10061); // connection refused
                 CommandMessages.Add(commandMessage);
+            }
+        }
+
+        [TestInitialize]
+        public void SetUp()
+        {
+            Thing.RetryDelayMs = 0;
+            Program.OnCommandFailed = null;
+        }
+
+        [TestCleanup]
+        public void TearDown()
+        {
+            Thing.RetryDelayMs = 1000;
+            Program.OnCommandFailed = null;
         }
 
         // Helpers to build realistic Mobilegate ITEM_UPDATE_IND responses
@@ -219,6 +241,72 @@ namespace EnetSenderNetTest
 
             Assert.AreEqual(1, fake.CommandMessages.Count);
             StringAssert.Contains(fake.CommandMessages[0], "\"VALUE\":100");
+        }
+
+        // ── Retry tests ──────────────────────────────────────────────────────────
+
+        [TestMethod]
+        public void Retry_SucceedsFirstAttempt_CommandRecorded()
+        {
+            var fake = new FakeMobilegate();
+            var blind = new Blind("test", 18, fake);
+
+            blind.MoveDown();
+
+            Assert.AreEqual(1, fake.CommandMessages.Count);
+        }
+
+        [TestMethod]
+        public void Retry_FailsOnceThenSucceeds_CommandRecorded_NoCallback()
+        {
+            string failMsg = null;
+            Program.OnCommandFailed = msg => failMsg = msg;
+            var fake = new FakeMobilegate { FailCount = 1 };
+            var blind = new Blind("test", 18, fake);
+
+            blind.MoveDown();
+
+            Assert.AreEqual(1, fake.CommandMessages.Count);
+            Assert.IsNull(failMsg);
+        }
+
+        [TestMethod]
+        public void Retry_FailsTwiceThenSucceeds_CommandRecorded_NoCallback()
+        {
+            string failMsg = null;
+            Program.OnCommandFailed = msg => failMsg = msg;
+            var fake = new FakeMobilegate { FailCount = 2 };
+            var blind = new Blind("test", 18, fake);
+
+            blind.MoveDown();
+
+            Assert.AreEqual(1, fake.CommandMessages.Count);
+            Assert.IsNull(failMsg);
+        }
+
+        [TestMethod]
+        public void Retry_FailsAllAttempts_CallsOnCommandFailed()
+        {
+            string failMsg = null;
+            Program.OnCommandFailed = msg => failMsg = msg;
+            var fake = new FakeMobilegate { FailCount = 3 };
+            var blind = new Blind("test", 18, fake);
+
+            blind.MoveDown();
+
+            Assert.AreEqual(0, fake.CommandMessages.Count);
+            Assert.IsNotNull(failMsg);
+            StringAssert.Contains(failMsg, "ch18");
+            StringAssert.Contains(failMsg, "test");
+        }
+
+        [TestMethod]
+        public void Retry_FailsAllAttempts_NullCallback_NoException()
+        {
+            var fake = new FakeMobilegate { FailCount = 3 };
+            var blind = new Blind("test", 18, fake);
+
+            blind.MoveDown(); // must not throw
         }
     }
 }

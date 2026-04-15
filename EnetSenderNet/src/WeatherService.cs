@@ -31,7 +31,7 @@ namespace EnetSenderNet
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Weather fetch failed: {ex.Message}");
+                Program.LogNormal($"Weather fetch failed: {ex.Message}");
                 return null;
             }
         }
@@ -48,7 +48,7 @@ namespace EnetSenderNet
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Weather fetch failed: {ex.Message}");
+                Program.LogNormal($"Weather fetch failed: {ex.Message}");
                 return null;
             }
         }
@@ -57,7 +57,7 @@ namespace EnetSenderNet
         {
             var temp = GetDailyHighTemperature();
             if (temp.HasValue)
-                Console.WriteLine($"Today's high: {temp}°C");
+                Program.LogNormal($"Today's high: {temp}°C");
             return temp.HasValue && temp.Value > thresholdCelsius;
         }
     }

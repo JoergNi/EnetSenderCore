@@ -6,6 +6,7 @@ namespace EnetSenderNet
     {
         public class Job
         {
+            public string Name { get; }
             public Action Action { get; set; }
             public DateTime Time { get; set; }
             public bool DoneForToday { get; set; }
@@ -20,17 +21,19 @@ namespace EnetSenderNet
                 }
                 if (!DoneForToday && DateTime.Now > Time)
                 {
-
+                    Program.LogNormal($"[Job] {Name} firing (scheduled {Time:HH:mm:ss})");
                     Action();
                     DoneForToday = true;
                 }
             }
 
-            private Job(DateTime time, Action action)
+            private Job(string name, DateTime time, Action action)
             {
+                Name = name;
                 Time = time;
                 if (Time < DateTime.Now)
                 {
+                    Program.LogNormal($"[Job] {Name} already past ({Time:HH:mm:ss}), skipping");
                     DoneForToday = true;
                 }
                 else
@@ -40,7 +43,7 @@ namespace EnetSenderNet
                 Action = action;
             }
 
-            public Job(DateTime time, Action action, bool ignoreOnWeekends) : this(time, action)
+            public Job(string name, DateTime time, Action action, bool ignoreOnWeekends) : this(name, time, action)
             {
                 IgnoreOnWeekends = ignoreOnWeekends;
             }

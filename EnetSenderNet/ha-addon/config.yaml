@@ -1,9 +1,11 @@
 name: "eNet Sender"
 description: "Bridges eNet smart home bus to a REST API for Home Assistant"
-version: "1.5.28"
+version: "1.5.31"
 slug: "enetsender"
 image: "ghcr.io/joergni/enetsender"
 init: false
+map:
+  - data:rw
 arch:
   - aarch64
 startup: application

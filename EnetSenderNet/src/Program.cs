@@ -8,9 +8,12 @@ using Quartz;
 using Quartz.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("EnetSenderNetTest")]
 
 namespace EnetSenderNet
 {
@@ -26,13 +29,59 @@ namespace EnetSenderNet
         public static string EnetVersion     { get; private set; } = "unknown";
         public static int[]  DeviceTypes     { get; private set; } = Array.Empty<int>();
 
-        private static void Log(string message) =>
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}");
+        internal static Action<string> OnCommandFailed { get; set; }
+
+        internal static IEnumerable<string> FilterJobLog(IEnumerable<string> entries, DateTime cutoff)
+        {
+            var cutoffStr = cutoff.ToString("yyyy-MM-dd");
+            return entries.Where(l => l.Length >= 10 && string.CompareOrdinal(l, 0, cutoffStr, 0, 10) >= 0);
+        }
+
+        private static readonly List<string> _normalLog = new List<string>();
+        private static readonly object _normalLogLock = new object();
+        private const string JobLogFile = "/data/enet_jobs.log";
+
+        private static readonly List<string> _debugLog = new List<string>();
+        private static readonly object _debugLogLock = new object();
+        private const int DebugLogMaxEntries = 10000;
+
+        internal static void LogNormal(string message)
+        {
+            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}";
+            Console.WriteLine(line);
+            lock (_normalLogLock)
+            {
+                _normalLog.Add(line);
+                try { File.AppendAllText(JobLogFile, line + "\n"); }
+                catch (Exception ex) { Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} joblog write failed: {ex.Message}"); }
+            }
+        }
+
+        internal static void LogDebug(string message)
+        {
+            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}";
+            Console.WriteLine(line);
+            lock (_debugLogLock)
+            {
+                if (_debugLog.Count >= DebugLogMaxEntries)
+                    _debugLog.RemoveAt(0);
+                _debugLog.Add(line);
+            }
+        }
 
         private static void Main(string[] args)
         {
-            Log($"Starting eNet Sender {typeof(Program).Assembly.GetName().Version}");
             LogProvider.SetCurrentLogProvider(new ConsoleLogProvider());
+
+            if (File.Exists(JobLogFile))
+            {
+                var lines = File.ReadAllLines(JobLogFile);
+                lock (_normalLogLock)
+                    _normalLog.AddRange(lines);
+            }
+            OnCommandFailed = msg => LogNormal($"[FAIL] {msg}");
+            LogNormal($"[START] eNet Sender {typeof(Program).Assembly.GetName().Version} starting");
+
             QueryVersion();
             QueryAllChannels();
             LogThingStates();
@@ -75,6 +124,18 @@ namespace EnetSenderNet
                     hwType   = DeviceTypes.Length > t.Channel ? DeviceTypes[t.Channel] : -1,
                     state    = ThingRegistry.StateCache.TryGetValue(t.Channel, out var s) ? s : null
                 })
+            });
+
+            app.MapGet("/joblog", () =>
+            {
+                lock (_normalLogLock)
+                    return Results.Text(string.Join("\n", FilterJobLog(_normalLog, DateTime.Now.AddDays(-10))));
+            });
+
+            app.MapGet("/joblog/debug", () =>
+            {
+                lock (_debugLogLock)
+                    return Results.Text(string.Join("\n", _debugLog));
             });
 
             app.MapGet("/things", () => ThingRegistry.All.Select(t => new
@@ -165,7 +226,7 @@ namespace EnetSenderNet
             while (true)
             {
                 Thread.Sleep(60000);
-                Log($"heartbeat — things={ThingRegistry.All.Count} lastInit={LastInitTime:HH:mm:ss} jobs={Jobs.Count}");
+                LogNormal($"heartbeat - things={ThingRegistry.All.Count} lastInit={LastInitTime:HH:mm:ss} jobs={Jobs.Count}");
             }
         }
 
@@ -216,7 +277,7 @@ namespace EnetSenderNet
         {
             var request = new EnetCommandMessage { Command = "VERSION_REQ" };
             string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString());
-            Log("VERSION_RES: " + response);
+            LogDebug("VERSION_RES: " + response.Trim());
             try
             {
                 var json = Newtonsoft.Json.Linq.JObject.Parse(response.Trim().TrimEnd('\r', '\n'));
@@ -224,21 +285,20 @@ namespace EnetSenderNet
                 HardwareVersion = json["HARDWARE"]?.ToString() ?? "unknown";
                 EnetVersion     = json["ENET"]?.ToString()     ?? "unknown";
             }
-            catch { Log("Failed to parse VERSION_RES"); }
+            catch { LogNormal("Failed to parse VERSION_RES"); }
         }
 
         private static void QueryAllChannels()
         {
             var request = new EnetCommandMessage { Command = "GET_CHANNEL_INFO_ALL_REQ" };
             string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString());
-            Log("GET_CHANNEL_INFO_ALL response:");
-            Log(response);
+            LogDebug("GET_CHANNEL_INFO_ALL: " + response.Trim());
             try
             {
                 var json = Newtonsoft.Json.Linq.JObject.Parse(response.Trim().TrimEnd('\r', '\n'));
                 DeviceTypes = json["DEVICES"]?.ToObject<int[]>() ?? Array.Empty<int>();
             }
-            catch { Log("Failed to parse GET_CHANNEL_INFO_ALL_RES"); }
+            catch { LogNormal("Failed to parse GET_CHANNEL_INFO_ALL_RES"); }
         }
 
         private static void LogThingStates()
@@ -246,7 +306,7 @@ namespace EnetSenderNet
             foreach (var thing in ThingRegistry.All)
             {
                 var state = thing.GetState();
-                Log($"[Ch{thing.Channel:D2}] {thing.Name,-30} Value={state?.Value,3}  State={state?.State}");
+                LogDebug($"[Ch{thing.Channel:D2}] {thing.Name,-30} Value={state?.Value,3}  State={state?.State}");
                 Thread.Sleep(500);
             }
         }
@@ -258,21 +318,21 @@ namespace EnetSenderNet
             Coordinate c = new Coordinate(50.921210, 7.086539, LastInitTime);
             DateTime localSunRise = new DateTime(c.CelestialInfo.SunRise.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
             DateTime localSunSet = new DateTime(c.CelestialInfo.SunSet.Value.Ticks, DateTimeKind.Utc).ToLocalTime();
-            Log($"sunrise={localSunRise:HH:mm} sunset={localSunSet:HH:mm}");
+            LogNormal($"sunrise={localSunRise:HH:mm} sunset={localSunSet:HH:mm}");
 
-            Jobs.Add(new Job(Min(localSunSet.AddMinutes(10), TimeSpan.FromHours(20)), () =>
+            Jobs.Add(new Job("OfficeGarage+Street down", Min(localSunSet.AddMinutes(10), TimeSpan.FromHours(20)), () =>
             {
                 ThingRegistry.OfficeGarage.MoveDown();
                 ThingRegistry.OfficeStreet.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(8.25)), () =>
+            Jobs.Add(new Job("OfficeGarage+Street up", Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(8.25)), () =>
             {
                 ThingRegistry.OfficeGarage.MoveUp();
                 ThingRegistry.OfficeStreet.MoveUp();
             }, false));
 
-            Jobs.Add(new Job(Min(localSunSet.AddMinutes(8), TimeSpan.FromHours(22)), () =>
+            Jobs.Add(new Job("Kitchen+DiningRoom down", Min(localSunSet.AddMinutes(8), TimeSpan.FromHours(22)), () =>
             {
                 ThingRegistry.Kitchen.MoveDown();
                 ThingRegistry.DiningRoom.MoveDown();
@@ -281,7 +341,7 @@ namespace EnetSenderNet
                 ThingRegistry.DiningRoom.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(Max(localSunRise.AddMinutes(8), TimeSpan.FromHours(7.45)), () =>
+            Jobs.Add(new Job("Kitchen+DiningRoom up", Max(localSunRise.AddMinutes(8), TimeSpan.FromHours(7.45)), () =>
             {
                 ThingRegistry.Kitchen.MoveUp();
                 Thread.Sleep(1000);
@@ -291,37 +351,37 @@ namespace EnetSenderNet
                 ThingRegistry.DiningRoom.MoveUp();
             }, false));
 
-            Jobs.Add(new Job(Min(localSunSet, TimeSpan.FromHours(22)), () =>
+            Jobs.Add(new Job("SleepingRoom down", Min(localSunSet, TimeSpan.FromHours(22)), () =>
             {
                 ThingRegistry.SleepingRoom.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(Min(localSunSet.AddMinutes(2), TimeSpan.FromHours(22)), () =>
+            Jobs.Add(new Job("PaulsRoom down", Min(localSunSet.AddMinutes(2), TimeSpan.FromHours(22)), () =>
             {
                 ThingRegistry.PaulsRoom.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(Min(localSunSet.AddMinutes(1), TimeSpan.FromHours(22)), () =>
+            Jobs.Add(new Job("LeasRoom down", Min(localSunSet.AddMinutes(1), TimeSpan.FromHours(22)), () =>
             {
                 ThingRegistry.LeasRoom.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(DateTime.Today.AddHours(9), () =>
+            Jobs.Add(new Job("LeasRoom up", DateTime.Today.AddHours(9), () =>
             {
                 ThingRegistry.LeasRoom.MoveUp();
             }, false));
 
-            Jobs.Add(new Job(Min(localSunSet.AddMinutes(4), TimeSpan.FromHours(23)), () =>
+            Jobs.Add(new Job("RaffstoreLiving down", Min(localSunSet.AddMinutes(4), TimeSpan.FromHours(23)), () =>
             {
                 ThingRegistry.RaffstoreLiving.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(Min(localSunSet.AddMinutes(3), TimeSpan.FromHours(22)), () =>
+            Jobs.Add(new Job("RaffstoreDining down", Min(localSunSet.AddMinutes(3), TimeSpan.FromHours(22)), () =>
             {
                 ThingRegistry.RaffstoreDining.MoveDown();
             }, false));
 
-            Jobs.Add(new Job(Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(10)), () =>
+            Jobs.Add(new Job("RaffstoreDining+Living up", Max(localSunRise.AddMinutes(10), TimeSpan.FromHours(10)), () =>
             {
                 ThingRegistry.RaffstoreDining.MoveUp();
                 ThingRegistry.RaffstoreLiving.MoveUp();
@@ -332,21 +392,21 @@ namespace EnetSenderNet
 
             if (isSummer)
             {
-                Jobs.Add(new Job(DateTime.Today.AddHours(13.5), () =>
+                Jobs.Add(new Job("OfficeStreet half", DateTime.Today.AddHours(13.5), () =>
                 {
                     ThingRegistry.OfficeStreet.MoveHalf();
                 }, false));
 
                 if (isHot)
                 {
-                    Jobs.Add(new Job(DateTime.Today.AddHours(9), () =>
+                    Jobs.Add(new Job("PaulsRoom+Leas 3/4", DateTime.Today.AddHours(9), () =>
                     {
                         ThingRegistry.PaulsRoom.MoveThreeQuarters();
                         Thread.Sleep(TimeSpan.FromMinutes(1));
                         ThingRegistry.LeasRoom.MoveThreeQuarters();
                     }, false));
 
-                    Jobs.Add(new Job(DateTime.Today.AddHours(17.5), () =>
+                    Jobs.Add(new Job("PaulsRoom+Leas up", DateTime.Today.AddHours(17.5), () =>
                     {
                         ThingRegistry.PaulsRoom.MoveUp();
                         Thread.Sleep(TimeSpan.FromMinutes(1));
