@@ -20,6 +20,8 @@ namespace EnetSenderNet
     internal partial class Program
     {
         private static readonly WeatherService _weather = new WeatherService(50.921210, 7.086539);
+        private static double? _dailyHighTemp;
+        private const double HotThresholdCelsius = 24;
 
         public static DateTime LastInitTime { get; private set; }
         public static IList<Job> Jobs = new List<Job>();
@@ -89,6 +91,7 @@ namespace EnetSenderNet
             Task.Run(RunScheduler);
             Task.Run(RefreshStateCache);
             Task.Run(HeartbeatLoop);
+            Task.Run(WeatherFetchLoop);
 
             var builder = WebApplication.CreateBuilder(args);
             builder.Logging.AddSimpleConsole(opts =>
@@ -98,13 +101,13 @@ namespace EnetSenderNet
             });
             var app = builder.Build();
 
-            app.MapGet("/health", () =>
+            app.MapGet("/health", () => Results.Ok("ok"));
+
+            app.MapGet("/mobilegate", () =>
             {
                 var request = new EnetCommandMessage { Command = "VERSION_REQ" };
                 string response = ThingRegistry.OfficeGarage.SendRequest(request.GetMessageString(), receiveTimeoutMs: 2000);
-                if (!response.Contains("VERSION_RES"))
-                    return Results.Problem("eNet Mobilegate unreachable");
-                return Results.Ok("ok");
+                return Results.Ok(response.Contains("VERSION_RES") ? "ok" : "down");
             });
 
             app.MapGet("/version", () => typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown");
@@ -218,6 +221,29 @@ namespace EnetSenderNet
                     else unchanged = 0;
                     lastState = key;
                 }
+            }
+        }
+
+        private static void WeatherFetchLoop()
+        {
+            while (true)
+            {
+                if (_dailyHighTemp == null)
+                {
+                    var temp = _weather.GetDailyHighTemperature();
+                    if (temp.HasValue)
+                    {
+                        _dailyHighTemp = temp;
+                        LogNormal($"Today's high: {temp}°C");
+                    }
+                    else
+                    {
+                        Thread.Sleep(TimeSpan.FromMinutes(10));
+                        continue;
+                    }
+                }
+                var nextMidnight = DateTime.Today.AddDays(1);
+                Thread.Sleep(nextMidnight - DateTime.Now);
             }
         }
 
@@ -387,8 +413,9 @@ namespace EnetSenderNet
                 ThingRegistry.RaffstoreLiving.MoveUp();
             }, false));
 
+            _dailyHighTemp = null;
+
             bool isSummer = LastInitTime.Month > 3 && LastInitTime.Month < 10;
-            bool isHot = _weather.IsHot();
 
             if (isSummer)
             {
@@ -397,22 +424,29 @@ namespace EnetSenderNet
                     ThingRegistry.OfficeStreet.MoveHalf();
                 }, false));
 
-                if (isHot)
+                Jobs.Add(new Job("PaulsRoom+Leas 3/4", DateTime.Today.AddHours(9), () =>
                 {
-                    Jobs.Add(new Job("PaulsRoom+Leas 3/4", DateTime.Today.AddHours(9), () =>
+                    if (!(_dailyHighTemp > HotThresholdCelsius))
                     {
-                        ThingRegistry.PaulsRoom.MoveThreeQuarters();
-                        Thread.Sleep(TimeSpan.FromMinutes(1));
-                        ThingRegistry.LeasRoom.MoveThreeQuarters();
-                    }, false));
+                        LogNormal("[Job] PaulsRoom+Leas 3/4 skipped (temp not above threshold)");
+                        return;
+                    }
+                    ThingRegistry.PaulsRoom.MoveThreeQuarters();
+                    Thread.Sleep(TimeSpan.FromMinutes(1));
+                    ThingRegistry.LeasRoom.MoveThreeQuarters();
+                }, false));
 
-                    Jobs.Add(new Job("PaulsRoom+Leas up", DateTime.Today.AddHours(17.5), () =>
+                Jobs.Add(new Job("PaulsRoom+Leas up", DateTime.Today.AddHours(17.5), () =>
+                {
+                    if (!(_dailyHighTemp > HotThresholdCelsius))
                     {
-                        ThingRegistry.PaulsRoom.MoveUp();
-                        Thread.Sleep(TimeSpan.FromMinutes(1));
-                        ThingRegistry.LeasRoom.MoveUp();
-                    }, false));
-                }
+                        LogNormal("[Job] PaulsRoom+Leas up skipped (temp not above threshold)");
+                        return;
+                    }
+                    ThingRegistry.PaulsRoom.MoveUp();
+                    Thread.Sleep(TimeSpan.FromMinutes(1));
+                    ThingRegistry.LeasRoom.MoveUp();
+                }, false));
             }
         }
 

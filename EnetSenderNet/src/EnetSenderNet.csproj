@@ -6,8 +6,8 @@
     <RuntimeIdentifiers>win-arm64;linux-arm;win-x64</RuntimeIdentifiers>
     <StartupObject>EnetSenderNet.Program</StartupObject>
     <Configurations>Release</Configurations>
-    <AssemblyVersion>1.5.31.0</AssemblyVersion>
-    <FileVersion>1.5.31.0</FileVersion>
+    <AssemblyVersion>1.5.34.0</AssemblyVersion>
+    <FileVersion>1.5.34.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -16,6 +16,13 @@
     <OutputPath>bin\Release\</OutputPath>
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Prevent Sdk.Web from globbing the test project subdirectory into any item type.
+         Without this, each build copies EnetSenderNetTest\obj\*.json into bin\Debug\net8.0\,
+         and subsequent builds re-include those copies, nesting the path infinitely. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);EnetSenderNetTest/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

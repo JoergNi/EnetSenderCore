@@ -114,6 +114,14 @@ namespace EnetSenderNet
             }
         }
 
+        /// <summary>
+        /// Creates a real SocketMobilegateSender pointing at an arbitrary address.
+        /// Used only by unit tests that need to exercise real TCP error paths without
+        /// depending on the static ServerIp/ServerPort fields or a live Mobilegate.
+        /// </summary>
+        internal static IMobilegateSender CreateRealSenderForTest(string ip, int port) =>
+            new SocketMobilegateSender(ip, port);
+
         // ── Real TCP implementation ──────────────────────────────────────────
 
         private sealed class SocketMobilegateSender : IMobilegateSender
@@ -126,7 +134,17 @@ namespace EnetSenderNet
             private Socket Connect()
             {
                 var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                sock.Connect(new IPEndPoint(IPAddress.Parse(_ip), _port));
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3));
+                try
+                {
+                    sock.ConnectAsync(new IPEndPoint(IPAddress.Parse(_ip), _port), cts.Token)
+                        .AsTask().GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                    sock.Close();
+                    throw new SocketException((int)SocketError.TimedOut);
+                }
                 return sock;
             }
 
@@ -154,6 +172,7 @@ namespace EnetSenderNet
             public void SendCommand(string commandMessage, int channel, string thingName)
             {
                 var sock = Connect();
+                sock.ReceiveTimeout = 3000;
                 var buf = new byte[1024];
 
                 var signIn = new EnetCommandMessage { Channel = channel, Command = "ITEM_VALUE_SIGN_IN_REQ" };
